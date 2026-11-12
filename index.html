@@ -477,31 +477,55 @@
         return `${SUPABASE_CONFIG.storageUrl}/object/public/${SUPABASE_CONFIG.bucket}/${uploadPath}`;
     };
 
-    // --- TIKWM 1-HOUR AUTO-SYNC ENGINE ---
+    // --- TIKWM 1-HOUR AUTO-SYNC ENGINE (WITH CORS PROXY FALLBACK) ---
     const ONE_HOUR_MS = 60 * 60 * 1000;
     const syncInProgress = new Set();
+
+    async function fetchJsonWithCorsFallback(targetUrl) {
+        const endpoints = [
+            targetUrl,
+            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+        ];
+
+        let lastError = null;
+        for (const url of endpoints) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const text = await res.text();
+                const json = JSON.parse(text);
+                if (json && typeof json.code !== 'undefined') {
+                    return json;
+                }
+            } catch (err) {
+                lastError = err;
+            }
+        }
+        throw new Error(lastError ? `Network/CORS blocked (${lastError.message})` : "Unable to reach TikWM");
+    }
 
     window.fetchTikWMCreatorData = async function(rawUsername) {
         const cleanUsername = rawUsername.replace(/^@/, '').trim();
         if (!cleanUsername) throw new Error("Invalid TikTok username");
 
         // 1. Fetch User Profile Stats (Followers, Following, Total Likes)
-        const infoRes = await fetch(`https://www.tikwm.com/api/user/info?unique_id=${encodeURIComponent(cleanUsername)}`);
-        const infoJson = await infoRes.json();
+        const infoUrl = `https://www.tikwm.com/api/user/info?unique_id=${encodeURIComponent(cleanUsername)}`;
+        const infoJson = await fetchJsonWithCorsFallback(infoUrl);
 
         if (infoJson.code !== 0 || !infoJson.data) {
-            throw new Error(infoJson.msg || "TikTok user not found on TikWM");
+            throw new Error(infoJson.msg || `TikTok user "@${cleanUsername}" not found`);
         }
 
         const userObj = infoJson.data.user || {};
         const statsObj = infoJson.data.stats || {};
 
         // Respect TikWM's 1 req/sec public limit between calls
-        await new Promise(r => setTimeout(r, 1150));
+        await new Promise(r => setTimeout(r, 1200));
 
         // 2. Fetch Latest 3 Videos (Views, Likes, Cover, Link)
-        const postsRes = await fetch(`https://www.tikwm.com/api/user/posts?unique_id=${encodeURIComponent(cleanUsername)}&count=3`);
-        const postsJson = await postsRes.json();
+        const postsUrl = `https://www.tikwm.com/api/user/posts?unique_id=${encodeURIComponent(cleanUsername)}&count=3`;
+        const postsJson = await fetchJsonWithCorsFallback(postsUrl);
 
         let recentVideos = [];
         if (postsJson.code === 0 && postsJson.data && Array.isArray(postsJson.data.videos)) {
@@ -547,7 +571,8 @@
                 total_likes: fresh.total_likes,
                 video_count: fresh.video_count,
                 recent_videos: fresh.recent_videos,
-                last_synced_at: fresh.last_synced_at
+                last_synced_at: fresh.last_synced_at,
+                last_sync_error: ''
             };
             // Only overwrite avatar if user hasn't uploaded a custom Supabase one
             if (!creatorDoc.avatar_url && fresh.avatar_url) {
@@ -564,8 +589,11 @@
             }
             return updatedCreator;
         } catch (err) {
-            console.warn(`TikWM sync skipped for ${creatorDoc.tiktok_username}:`, err.message);
-            return creatorDoc;
+            console.error(`TikWM sync failed for ${creatorDoc.tiktok_username}:`, err);
+            if (force) {
+                window.showToast(`Sync failed: ${err.message}`, 'error');
+            }
+            return { ...creatorDoc, last_sync_error: err.message };
         } finally {
             syncInProgress.delete(uid);
         }
@@ -640,7 +668,7 @@
         setTimeout(() => {
             toast.classList.add('translate-y-2', 'opacity-0');
             setTimeout(() => toast.remove(), 300);
-        }, 3500);
+        }, 4000);
     };
 
     window.navigateToDashboard = function() {
@@ -985,14 +1013,15 @@
             updates.followers = Number(document.getElementById('edit-followers').value || 0);
             updates.bio = document.getElementById('edit-bio').value.trim();
 
-            // Re-sync live metrics from TikWM when profile is saved
             try {
+                window.showToast('Syncing updated TikTok handle...', 'info');
                 const fetched = await window.fetchTikWMCreatorData(tiktok);
                 updates.followers = fetched.followers;
                 updates.following = fetched.following;
                 updates.total_likes = fetched.total_likes;
                 updates.recent_videos = fetched.recent_videos;
                 updates.last_synced_at = fetched.last_synced_at;
+                updates.last_sync_error = '';
                 if (!window.currentUser.avatar_url && fetched.avatar_url) {
                     updates.avatar_url = fetched.avatar_url;
                 }
@@ -2158,9 +2187,11 @@
     window.forceRefreshCreatorStats = async function() {
         if (!window.currentUser) return;
         window.showToast('Fetching latest TikTok followers, likes & 3 videos...', 'info');
-        await window.syncCreatorIfStale(window.currentUser, true);
+        const result = await window.syncCreatorIfStale(window.currentUser, true);
         await loadCreatorDashboardData();
-        window.showToast('TikTok stats updated!', 'success');
+        if (!result.last_sync_error) {
+            window.showToast('TikTok stats updated!', 'success');
+        }
     };
 
     async function loadCreatorDashboardData() {
@@ -2178,7 +2209,8 @@
         const vidGrid = document.getElementById('creator-recent-videos-grid');
         const vids = Array.isArray(syncedUser.recent_videos) ? syncedUser.recent_videos : [];
         if (vids.length === 0) {
-            vidGrid.innerHTML = `<div class="col-span-3 text-xs text-zinc-500 py-6 text-center bg-[#181818] rounded-2xl border border-zinc-800">No public videos found for ${window.escapeHTML(syncedUser.tiktok_username)}. Make sure your TikTok profile is Public and click "Sync Now".</div>`;
+            const errNote = syncedUser.last_sync_error ? ` (${window.escapeHTML(syncedUser.last_sync_error)})` : '';
+            vidGrid.innerHTML = `<div class="col-span-3 text-xs text-zinc-500 py-6 text-center bg-[#181818] rounded-2xl border border-zinc-800">No public videos found for ${window.escapeHTML(syncedUser.tiktok_username)}${errNote}. Make sure your TikTok profile is Public and click "Sync Now".</div>`;
         } else {
             vidGrid.innerHTML = vids.map((v, index) => `
                 <a href="${window.escapeHTML(v.url)}" target="_blank" class="flex items-center space-x-3.5 p-3.5 rounded-2xl bg-[#181818] border border-zinc-800 hover:border-[#25F4EE] transition-all group">
