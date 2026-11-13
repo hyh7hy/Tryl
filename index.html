@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HAWME Admin — Platform Control & Moderation</title>
+    <title>HAWME Admin — Full Platform Control Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -120,6 +120,7 @@
             transition: opacity 150ms ease;
         }
         .btn-cta:hover:not(:disabled) { opacity: 0.93; }
+        .btn-cta:disabled { opacity: 0.45; cursor: not-allowed; }
         .btn-ghost {
             background: transparent;
             border: 1px solid var(--border-normal);
@@ -149,7 +150,7 @@
     <div class="atmosphere-glow"></div>
     <div id="toast-container" class="fixed top-4 right-4 left-4 sm:left-auto z-[70] flex flex-col space-y-2.5 pointer-events-none"></div>
 
-    <!-- Confirmation Modal for Destructive Actions -->
+    <!-- Confirmation Modal for Deletions -->
     <div id="confirm-modal" onclick="if(event.target===this) closeConfirmModal()" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="card-outer p-6 max-w-sm w-full shadow-2xl space-y-4">
             <h3 id="confirm-title" class="font-black text-lg">Confirm Action</h3>
@@ -161,7 +162,52 @@
         </div>
     </div>
 
-    <!-- Top Admin Bar -->
+    <!-- Edit User Stats / Followers / Verification Modal -->
+    <div id="edit-user-modal" onclick="if(event.target===this) closeEditUserModal()" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+        <div class="card-outer p-6 max-w-md w-full shadow-2xl space-y-4 my-8">
+            <div class="flex items-center justify-between pb-2 border-b" style="border-color: var(--border-normal);">
+                <h3 class="font-black text-lg">Edit Member Record</h3>
+                <button onclick="closeEditUserModal()" class="text-sec hover:opacity-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="saveAdminUserEdit(event)" class="space-y-4">
+                <input type="hidden" id="admin-edit-uid">
+                <div>
+                    <label class="block text-xs font-bold text-sec mb-1">Display / Company Name</label>
+                    <input type="text" id="admin-edit-name" required class="input-field px-3.5 py-2.5 text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-sec mb-1">HAWME Username</label>
+                        <input type="text" id="admin-edit-hawme" required class="input-field px-3.5 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-sec mb-1">TikTok Username</label>
+                        <input type="text" id="admin-edit-tiktok" class="input-field px-3.5 py-2.5 text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-sec mb-1">Verified Followers</label>
+                        <input type="number" id="admin-edit-followers" min="0" class="input-field px-3.5 py-2.5 text-sm tabular-nums">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-sec mb-1">Completed Promos</label>
+                        <input type="number" id="admin-edit-completed" min="0" class="input-field px-3.5 py-2.5 text-sm tabular-nums">
+                    </div>
+                </div>
+                <div class="flex items-center justify-between p-3.5 card-inner">
+                    <span class="text-xs font-bold">Verified Badge Status</span>
+                    <input type="checkbox" id="admin-edit-verified" class="w-4 h-4 accent-cyan-400">
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button type="submit" class="flex-1 py-3 btn-cta text-xs">Save Changes</button>
+                    <button type="button" onclick="closeEditUserModal()" class="px-5 py-3 btn-ghost text-xs">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Top Admin Header -->
     <header class="sticky top-0 z-40 backdrop-blur-md border-b" style="background: var(--nav-backdrop); border-color: var(--border-normal);">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
@@ -172,19 +218,19 @@
                 </div>
                 <div>
                     <span class="font-extrabold text-base tracking-tight">HAWME Admin</span>
-                    <span id="admin-email-badge" class="hidden sm:inline-block ml-2 text-xs text-sec"></span>
+                    <span id="admin-session-badge" class="hidden sm:inline-block ml-2 text-xs text-accent font-bold">Authenticated</span>
                 </div>
             </div>
 
             <div class="flex items-center space-x-2.5">
-                <button onclick="refreshAllAdminData()" id="refresh-btn" class="hidden p-2 rounded-xl btn-ghost" title="Refresh Data">
+                <button onclick="refreshAllAdminData()" id="refresh-btn" class="hidden p-2 rounded-xl btn-ghost" title="Refresh Database">
                     <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                 </button>
                 <button onclick="toggleThemeMode()" class="p-2 rounded-xl btn-ghost" title="Switch Theme">
                     <i id="theme-toggle-icon" data-lucide="sun" class="w-4 h-4 text-accent"></i>
                 </button>
                 <button id="admin-logout-btn" onclick="adminLogout()" class="hidden px-3.5 py-2 btn-danger text-xs">
-                    Log Out
+                    Lock / Log Out
                 </button>
             </div>
         </div>
@@ -195,25 +241,14 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import {
-        getAuth,
-        signInWithEmailAndPassword,
-        signInWithPopup,
-        GoogleAuthProvider,
-        signOut,
-        onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import {
         getFirestore,
         doc,
         getDoc,
-        setDoc,
         collection,
         getDocs,
         addDoc,
         updateDoc,
-        deleteDoc,
-        query,
-        where
+        deleteDoc
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -233,32 +268,28 @@
         bucket: "campaign-images"
     };
 
-    // Authorized Admin Emails (can also be granted via users/{uid}.role === 'admin' in Firestore)
-    const AUTHORIZED_ADMIN_EMAILS = [
-        "hanif@hawme.shop",
-        "admin@hawme.shop"
-    ];
+    // Password-only access key
+    const ADMIN_MASTER_PASSWORD = "2026Hawme";
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
-    const googleProvider = new GoogleAuthProvider();
-    googleProvider.setCustomParameters({ prompt: 'select_account' });
 
     window.adminState = {
-        user: null,
-        isAuthorized: false,
-        tab: 'overview',
-        search: '',
-        roleFilter: 'all',
+        unlocked: sessionStorage.getItem("hawme_admin_unlocked") === "true",
+        tab: "overview",
+        search: "",
+        roleFilter: "all",
+        offerFilter: "all",
+        notifTargetMode: "all_creators",
         users: [],
         campaigns: [],
+        applications: [],
+        deals: [],
         verifications: [],
         withdrawals: [],
         transactions: [],
-        deals: [],
-        applications: [],
-        posts: []
+        posts: [],
+        notifications: []
     };
 
     window.escapeHTML = function(str) {
@@ -313,14 +344,46 @@
         return `${SUPABASE_CONFIG.storageUrl}/object/public/${SUPABASE_CONFIG.bucket}/${uploadPath}`;
     };
 
-    // Confirmation Dialog Helper
+    // Password-Only Login Handler
+    window.handlePasswordLogin = async function(e) {
+        e.preventDefault();
+        const input = document.getElementById('admin-password-input');
+        const val = input ? input.value : '';
+        if (val === ADMIN_MASTER_PASSWORD) {
+            window.adminState.unlocked = true;
+            sessionStorage.setItem("hawme_admin_unlocked", "true");
+            updateHeaderSessionUI();
+            window.showToast('Admin console unlocked', 'success');
+            await refreshAllAdminData();
+        } else {
+            window.showToast('Incorrect admin password', 'error');
+            if (input) { input.value = ''; input.focus(); }
+        }
+    };
+
+    window.adminLogout = function() {
+        window.adminState.unlocked = false;
+        sessionStorage.removeItem("hawme_admin_unlocked");
+        updateHeaderSessionUI();
+        renderAdminApp();
+        window.showToast('Admin console locked', 'info');
+    };
+
+    function updateHeaderSessionUI() {
+        const unlocked = window.adminState.unlocked;
+        document.getElementById('admin-logout-btn')?.classList.toggle('hidden', !unlocked);
+        document.getElementById('refresh-btn')?.classList.toggle('hidden', !unlocked);
+        document.getElementById('admin-session-badge')?.classList.toggle('hidden', !unlocked);
+    }
+
+    // Confirmation Dialog
     window.openConfirmModal = function(title, description, onConfirm) {
         document.getElementById('confirm-title').innerText = title;
         document.getElementById('confirm-desc').innerText = description;
         const btn = document.getElementById('confirm-exec-btn');
         btn.onclick = async () => {
             btn.disabled = true;
-            btn.innerText = 'Deleting...';
+            btn.innerText = 'Processing...';
             try {
                 await onConfirm();
                 closeConfirmModal();
@@ -336,99 +399,43 @@
         document.getElementById('confirm-modal').classList.add('hidden');
     };
 
-    // Auth & Admin Role Check
-    async function verifyAdminAccess(fbUser) {
-        if (!fbUser) return false;
-        const emailLower = (fbUser.email || '').toLowerCase();
-        if (AUTHORIZED_ADMIN_EMAILS.includes(emailLower)) return true;
-        try {
-            const snap = await getDoc(doc(db, "users", fbUser.uid));
-            if (snap.exists() && snap.data().role === 'admin') return true;
-        } catch (e) {}
-        return false;
-    }
-
-    onAuthStateChanged(auth, async (fbUser) => {
-        window.adminState.user = fbUser;
-        if (fbUser) {
-            const allowed = await verifyAdminAccess(fbUser);
-            window.adminState.isAuthorized = allowed;
-            document.getElementById('admin-logout-btn').classList.remove('hidden');
-            document.getElementById('refresh-btn').classList.remove('hidden');
-            const emailBadge = document.getElementById('admin-email-badge');
-            if (emailBadge) {
-                emailBadge.innerText = fbUser.email;
-                emailBadge.classList.remove('hidden');
-            }
-            if (allowed) {
-                await refreshAllAdminData();
-            } else {
-                renderAdminApp();
-            }
-        } else {
-            window.adminState.isAuthorized = false;
-            document.getElementById('admin-logout-btn').classList.add('hidden');
-            document.getElementById('refresh-btn').classList.add('hidden');
-            document.getElementById('admin-email-badge')?.classList.add('hidden');
-            renderAdminApp();
-        }
-    });
-
-    window.adminEmailLogin = async function(e) {
-        e.preventDefault();
-        const email = document.getElementById('admin-email').value.trim();
-        const pass = document.getElementById('admin-pass').value;
-        try {
-            await signInWithEmailAndPassword(auth, email, pass);
-        } catch (err) {
-            window.showToast('Login failed: ' + err.message, 'error');
-        }
-    };
-
-    window.adminGoogleLogin = async function() {
-        try {
-            await signInWithPopup(auth, googleProvider);
-        } catch (err) {
-            window.showToast('Google sign-in failed: ' + err.message, 'error');
-        }
-    };
-
-    window.adminLogout = async function() {
-        await signOut(auth);
-        window.showToast('Signed out of Admin Console', 'info');
-    };
-
-    // Load All Firestore Collections for Admin Management
+    // Load Complete Firestore Database
     window.refreshAllAdminData = async function() {
         const s = window.adminState;
         try {
-            const [uSnap, cSnap, vSnap, wSnap, tSnap, dSnap, aSnap, pSnap] = await Promise.all([
+            const [uSnap, cSnap, aSnap, dSnap, vSnap, wSnap, tSnap, pSnap, nSnap] = await Promise.all([
                 getDocs(collection(db, "users")),
                 getDocs(collection(db, "campaigns")),
+                getDocs(collection(db, "applications")),
+                getDocs(collection(db, "direct_deals")),
                 getDocs(collection(db, "verification_requests")),
                 getDocs(collection(db, "withdrawals")),
                 getDocs(collection(db, "transactions")),
-                getDocs(collection(db, "direct_deals")),
-                getDocs(collection(db, "applications")),
-                getDocs(collection(db, "community_posts"))
+                getDocs(collection(db, "community_posts")),
+                getDocs(collection(db, "notifications"))
             ]);
 
             s.users = uSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            s.campaigns = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            s.campaigns = cSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+                .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            s.applications = aSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+                .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            s.deals = dSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+                .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
             s.verifications = vSnap.docs.map(d => ({ id: d.id, ...d.data() }))
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
             s.withdrawals = wSnap.docs.map(d => ({ id: d.id, ...d.data() }))
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
             s.transactions = tSnap.docs.map(d => ({ id: d.id, ...d.data() }))
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-            s.deals = dSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            s.applications = aSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             s.posts = pSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+                .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            s.notifications = nSnap.docs.map(d => ({ id: d.id, ...d.data() }))
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
             renderAdminApp();
         } catch (err) {
-            window.showToast('Failed to load Firestore data: ' + err.message, 'error');
+            window.showToast('Database sync error: ' + err.message, 'error');
         }
     };
 
@@ -438,63 +445,100 @@
     };
 
     // ==========================================================================
-    // ADMIN ACTIONS: DELETE USERS, DELETE OFFERS, VERIFICATIONS, PAYOUTS, POSTS
+    // DEEP ADMIN CONTROLS: USERS, OFFERS, APPLICATIONS, DEALS, NOTIFICATIONS, PAYOUTS
     // ==========================================================================
 
-    // 1. Delete User Account & Related Records
+    // 1. Delete User Account & All Related Records
     window.promptDeleteUser = function(userId, displayName, role) {
         openConfirmModal(
             `Delete ${displayName}?`,
-            `This will permanently delete this ${role} profile from HAWME and remove their associated offers/applications. This cannot be undone.`,
+            `This permanently removes this ${role} account, their posted offers, applications, and direct deals from HAWME.`,
             async () => {
                 await deleteDoc(doc(db, "users", userId));
-
-                // Clean up user's campaigns if company
-                const userCampaigns = window.adminState.campaigns.filter(c => c.user_id === userId);
-                for (const c of userCampaigns) {
+                for (const c of window.adminState.campaigns.filter(x => x.user_id === userId)) {
                     await deleteDoc(doc(db, "campaigns", c.id));
                 }
-
-                // Clean up user's applications if creator
-                const userApps = window.adminState.applications.filter(a => a.creator_id === userId);
-                for (const a of userApps) {
+                for (const a of window.adminState.applications.filter(x => x.creator_id === userId || x.company_owner_id === userId)) {
                     await deleteDoc(doc(db, "applications", a.id));
                 }
-
-                window.showToast(`Account "${displayName}" deleted.`, 'success');
+                for (const d of window.adminState.deals.filter(x => x.creator_id === userId || x.company_id === userId)) {
+                    await deleteDoc(doc(db, "direct_deals", d.id));
+                }
+                window.showToast(`User "${displayName}" permanently deleted.`, 'success');
                 await refreshAllAdminData();
             }
         );
     };
 
-    // Toggle user verification directly from Users table
-    window.toggleUserVerified = async function(userId, currentState) {
-        const nextState = !currentState;
+    // Open Edit User Modal
+    window.openEditUserModal = function(userId) {
+        const u = window.adminState.users.find(x => x.id === userId);
+        if (!u) return;
+        document.getElementById('admin-edit-uid').value = u.id;
+        document.getElementById('admin-edit-name').value = u.name || '';
+        document.getElementById('admin-edit-hawme').value = u.hawme_username || '';
+        document.getElementById('admin-edit-tiktok').value = u.tiktok_username || '';
+        document.getElementById('admin-edit-followers').value = Number(u.followers || 0);
+        document.getElementById('admin-edit-completed').value = Number(u.completed_promotions || 0);
+        document.getElementById('admin-edit-verified').checked = Boolean(u.is_verified);
+        document.getElementById('edit-user-modal').classList.remove('hidden');
+        lucide.createIcons();
+    };
+
+    window.closeEditUserModal = function() {
+        document.getElementById('edit-user-modal').classList.add('hidden');
+    };
+
+    window.saveAdminUserEdit = async function(e) {
+        e.preventDefault();
+        const uid = document.getElementById('admin-edit-uid').value;
+        const cleanHawme = document.getElementById('admin-edit-hawme').value.toLowerCase().replace(/^@+/, '').trim();
+        const updates = {
+            name: document.getElementById('admin-edit-name').value.trim(),
+            hawme_username: cleanHawme,
+            tiktok_username: '@' + document.getElementById('admin-edit-tiktok').value.replace(/^@+/, '').trim(),
+            followers: Number(document.getElementById('admin-edit-followers').value || 0),
+            completed_promotions: Number(document.getElementById('admin-edit-completed').value || 0),
+            is_verified: document.getElementById('admin-edit-verified').checked
+        };
         try {
-            await updateDoc(doc(db, "users", userId), { is_verified: nextState });
-            await addDoc(collection(db, "notifications"), {
-                user_id: userId,
-                title: nextState ? 'Account Verified' : 'Verification Updated',
-                message: nextState
-                    ? 'Congratulations! Your HAWME verification badge is now active.'
-                    : 'Your account verification badge was removed by an administrator.',
-                read: false,
-                created_at: new Date().toISOString()
-            });
-            window.showToast(nextState ? 'Verified badge granted!' : 'Verified badge removed.', 'success');
+            await updateDoc(doc(db, "users", uid), updates);
+            closeEditUserModal();
+            window.showToast('Member record updated!', 'success');
             await refreshAllAdminData();
         } catch (err) { window.showToast(err.message, 'error'); }
     };
 
-    // 2. Delete Offer / Campaign
+    // 2. Offer Approval, Completion & Deletion
+    window.setOfferStatus = async function(campaignId, newStatus, ownerId, title) {
+        try {
+            await updateDoc(doc(db, "campaigns", campaignId), {
+                status: newStatus,
+                updated_at: new Date().toISOString()
+            });
+            if (ownerId) {
+                await addDoc(collection(db, "notifications"), {
+                    user_id: ownerId,
+                    title: `Offer Status: ${newStatus}`,
+                    message: `Your offer "${title}" was updated to ${newStatus} by HAWME Admin.`,
+                    detail: `Campaign: ${title}\nNew Status: ${newStatus}\nUpdated at: ${new Date().toLocaleString()}`,
+                    campaign_id: campaignId,
+                    read: false,
+                    created_at: new Date().toISOString()
+                });
+            }
+            window.showToast(`Offer marked as ${newStatus}.`, 'success');
+            await refreshAllAdminData();
+        } catch (err) { window.showToast(err.message, 'error'); }
+    };
+
     window.promptDeleteOffer = function(campaignId, title) {
         openConfirmModal(
             `Delete Offer "${title}"?`,
-            `This offer will be permanently deleted from the marketplace along with its pending applications.`,
+            `This offer and all linked applications will be permanently removed from HAWME.`,
             async () => {
                 await deleteDoc(doc(db, "campaigns", campaignId));
-                const relatedApps = window.adminState.applications.filter(a => a.campaign_id === campaignId);
-                for (const a of relatedApps) {
+                for (const a of window.adminState.applications.filter(x => x.campaign_id === campaignId)) {
                     await deleteDoc(doc(db, "applications", a.id));
                 }
                 window.showToast(`Offer "${title}" deleted.`, 'success');
@@ -503,17 +547,141 @@
         );
     };
 
-    // Toggle Offer Status (Active <-> Completed)
-    window.toggleOfferStatus = async function(campaignId, currentStatus) {
-        const next = currentStatus === 'Completed' ? 'Active' : 'Completed';
+    // 3. Admin Application & Video Submission Approval/Completion
+    window.adminSetApplicationStatus = async function(appId, newStatus) {
+        const appObj = window.adminState.applications.find(a => a.id === appId);
+        if (!appObj) return;
         try {
-            await updateDoc(doc(db, "campaigns", campaignId), { status: next });
-            window.showToast(`Offer marked as ${next}.`, 'success');
+            await updateDoc(doc(db, "applications", appId), { status: newStatus });
+
+            if (newStatus === 'Completed') {
+                if (appObj.campaign_id) {
+                    await updateDoc(doc(db, "campaigns", appObj.campaign_id), { status: 'Completed' });
+                }
+                const creatorRef = doc(db, "users", appObj.creator_id);
+                const cSnap = await getDoc(creatorRef);
+                if (cSnap.exists()) {
+                    await updateDoc(creatorRef, {
+                        completed_promotions: Number(cSnap.data().completed_promotions || 0) + 1
+                    });
+                }
+            }
+
+            if (appObj.creator_id) {
+                await addDoc(collection(db, "notifications"), {
+                    user_id: appObj.creator_id,
+                    title: `Application ${newStatus}`,
+                    message: `Your application for "${appObj.campaign_title}" is now ${newStatus}.`,
+                    detail: `Campaign: ${appObj.campaign_title}\nStatus: ${newStatus}\nReviewed by HAWME Admin.`,
+                    campaign_id: appObj.campaign_id || '',
+                    read: false,
+                    created_at: new Date().toISOString()
+                });
+            }
+            window.showToast(`Application set to ${newStatus}.`, 'success');
             await refreshAllAdminData();
         } catch (err) { window.showToast(err.message, 'error'); }
     };
 
-    // 3. Approve or Reject Verification Request
+    window.promptDeleteApplication = function(appId) {
+        openConfirmModal(
+            'Delete Application?',
+            'Remove this creator application permanently?',
+            async () => {
+                await deleteDoc(doc(db, "applications", appId));
+                window.showToast('Application deleted.', 'success');
+                await refreshAllAdminData();
+            }
+        );
+    };
+
+    // 4. Direct Deal Admin Override & Deletion
+    window.adminUpdateDealStatus = async function(dealId, newStatus) {
+        const deal = window.adminState.deals.find(d => d.id === dealId);
+        try {
+            await updateDoc(doc(db, "direct_deals", dealId), { status: newStatus });
+            if (deal?.creator_id) {
+                await addDoc(collection(db, "notifications"), {
+                    user_id: deal.creator_id,
+                    title: `Deal Update: ${newStatus.replace('_', ' ')}`,
+                    message: `Your deal with ${deal.company_name} (ETB ${Number(deal.amount_etb || 0).toLocaleString()}) is now ${newStatus.replace('_', ' ')}.`,
+                    detail: `Company: ${deal.company_name}\nAmount: ETB ${Number(deal.amount_etb || 0).toLocaleString()}\nStatus: ${newStatus.replace('_', ' ')}`,
+                    read: false,
+                    created_at: new Date().toISOString()
+                });
+            }
+            window.showToast(`Deal updated to ${newStatus}.`, 'success');
+            await refreshAllAdminData();
+        } catch (err) { window.showToast(err.message, 'error'); }
+    };
+
+    window.promptDeleteDeal = function(dealId) {
+        openConfirmModal(
+            'Delete Direct Deal?',
+            'Remove this direct collaboration record permanently?',
+            async () => {
+                await deleteDoc(doc(db, "direct_deals", dealId));
+                window.showToast('Deal deleted.', 'success');
+                await refreshAllAdminData();
+            }
+        );
+    };
+
+    // 5. Send Custom Notifications to Creators / Companies / Specific User
+    window.handleSendAdminNotification = async function(e) {
+        e.preventDefault();
+        const mode = document.getElementById('notif-target-mode').value;
+        const specificUid = document.getElementById('notif-specific-uid')?.value;
+        const title = document.getElementById('notif-title').value.trim();
+        const message = document.getElementById('notif-message').value.trim();
+        const detail = document.getElementById('notif-detail').value.trim();
+        const btn = document.getElementById('send-notif-btn');
+
+        let recipients = [];
+        if (mode === 'all_creators') {
+            recipients = window.adminState.users.filter(u => u.role === 'creator');
+        } else if (mode === 'all_companies') {
+            recipients = window.adminState.users.filter(u => u.role === 'company');
+        } else if (mode === 'all_users') {
+            recipients = window.adminState.users;
+        } else if (mode === 'single' && specificUid) {
+            recipients = window.adminState.users.filter(u => u.id === specificUid);
+        }
+
+        if (!recipients.length) {
+            window.showToast('No target recipients found.', 'error');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = `Sending to ${recipients.length}...`;
+
+        try {
+            const now = new Date().toISOString();
+            for (const u of recipients) {
+                await addDoc(collection(db, "notifications"), {
+                    user_id: u.id,
+                    title,
+                    message,
+                    detail: detail || message,
+                    read: false,
+                    created_at: now
+                });
+            }
+            window.showToast(`Notification sent to ${recipients.length} recipient(s)!`, 'success');
+            document.getElementById('notif-title').value = '';
+            document.getElementById('notif-message').value = '';
+            document.getElementById('notif-detail').value = '';
+            await refreshAllAdminData();
+        } catch (err) {
+            window.showToast('Failed to send notifications: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Send Notification';
+        }
+    };
+
+    // 6. Verification Queue Decisions
     window.handleVerificationDecision = async function(reqId, userId, approve) {
         try {
             await updateDoc(doc(db, "verification_requests", reqId), {
@@ -528,21 +696,24 @@
                     user_id: userId,
                     title: approve ? 'Verification Approved' : 'Verification Rejected',
                     message: approve
-                        ? 'Your HAWME verification was approved! Your blue badge is now live on your profile.'
+                        ? 'Your HAWME verification badge has been approved!'
                         : 'Your verification request was rejected. Ensure your TikTok bio displays the code and try again.',
+                    detail: approve
+                        ? 'Your official HAWME verified badge is now visible across your profile and leaderboard.'
+                        : 'Verification could not be confirmed. Generate a new code and ensure it remains visible in your TikTok bio for 3 hours.',
                     read: false,
                     created_at: new Date().toISOString()
                 });
             }
-            window.showToast(approve ? 'Verification approved & badge activated!' : 'Verification request rejected.', 'success');
+            window.showToast(approve ? 'Verification approved!' : 'Verification rejected.', 'success');
             await refreshAllAdminData();
         } catch (err) { window.showToast(err.message, 'error'); }
     };
 
-    // 4. Mark Withdrawal / Escrow Payout Completed
+    // 7. Payouts & Escrow Completion
     window.completeCreatorWithdrawal = async function(withdrawalId, creatorId, amountEtb, bankName) {
         const refInput = document.getElementById(`tx-ref-${withdrawalId}`);
-        const txRef = refInput?.value.trim() || `TX-${Date.now()}`;
+        const txRef = refInput?.value.trim() || `HAWME-TX-${Date.now()}`;
         try {
             await updateDoc(doc(db, "withdrawals", withdrawalId), {
                 status: 'Completed',
@@ -553,20 +724,20 @@
             if (creatorId) {
                 await addDoc(collection(db, "notifications"), {
                     user_id: creatorId,
-                    title: 'Payout Completed',
-                    message: `ETB ${Number(amountEtb).toLocaleString()} has been sent to your ${bankName}.`,
-                    detail: `Amount Sent: ETB ${Number(amountEtb).toLocaleString()}\nDestination: ${bankName}\nTransaction Reference: ${txRef}`,
+                    title: 'Withdrawal Completed',
+                    message: `ETB ${Number(amountEtb).toLocaleString()} has been transferred to your ${bankName}.`,
+                    detail: `Payout Amount: ETB ${Number(amountEtb).toLocaleString()}\nDestination: ${bankName}\nTransaction Reference: ${txRef}`,
                     read: false,
                     created_at: new Date().toISOString()
                 });
             }
 
-            window.showToast('Withdrawal marked as Sent & creator notified!', 'success');
+            window.showToast('Payout marked as Sent & creator notified!', 'success');
             await refreshAllAdminData();
         } catch (err) { window.showToast(err.message, 'error'); }
     };
 
-    // 5. Publish & Delete HAWME Community Announcements
+    // 8. Community Announcements
     window.handlePublishCommunityPost = async function(e) {
         e.preventDefault();
         const caption = document.getElementById('admin-post-caption').value.trim();
@@ -587,10 +758,10 @@
                 likes_count: 0,
                 created_at: new Date().toISOString()
             });
-            window.showToast('Official HAWME post published!', 'success');
+            window.showToast('Announcement published!', 'success');
             await refreshAllAdminData();
         } catch (err) {
-            window.showToast('Failed to publish post: ' + err.message, 'error');
+            window.showToast('Failed to publish: ' + err.message, 'error');
         } finally {
             btn.disabled = false;
             btn.innerText = 'Publish Announcement';
@@ -599,24 +770,11 @@
 
     window.promptDeletePost = function(postId) {
         openConfirmModal(
-            'Delete Community Post?',
-            'This announcement will be removed from the Explore feed.',
+            'Delete Announcement?',
+            'This post will be removed from the Explore feed.',
             async () => {
                 await deleteDoc(doc(db, "community_posts", postId));
                 window.showToast('Post deleted.', 'success');
-                await refreshAllAdminData();
-            }
-        );
-    };
-
-    // 6. Delete Direct Deal
-    window.promptDeleteDeal = function(dealId) {
-        openConfirmModal(
-            'Delete Direct Deal?',
-            'Remove this direct collaboration record permanently?',
-            async () => {
-                await deleteDoc(doc(db, "direct_deals", dealId));
-                window.showToast('Deal deleted.', 'success');
                 await refreshAllAdminData();
             }
         );
@@ -629,48 +787,26 @@
         const root = document.getElementById('admin-app');
         const s = window.adminState;
 
-        if (!s.user) {
+        // Password-Only Gate
+        if (!s.unlocked) {
             root.innerHTML = `
                 <div class="min-h-[82vh] flex items-center justify-center px-4 py-12">
-                    <div class="w-full max-w-md card-outer p-7 shadow-2xl space-y-6">
-                        <div class="space-y-1">
-                            <h1 class="text-2xl font-black tracking-tight">HAWME Admin Access</h1>
-                            <p class="text-xs text-sec">Sign in with your authorized administrator account.</p>
+                    <div class="w-full max-w-sm card-outer p-7 shadow-2xl space-y-6">
+                        <div class="text-center space-y-1.5">
+                            <div class="w-12 h-12 rounded-2xl card-inner mx-auto flex items-center justify-center text-accent mb-2">
+                                <i data-lucide="lock" class="w-6 h-6"></i>
+                            </div>
+                            <h1 class="text-2xl font-black tracking-tight">HAWME Admin</h1>
+                            <p class="text-xs text-sec">Enter administrator password to unlock control panel.</p>
                         </div>
 
-                        <button onclick="adminGoogleLogin()" class="w-full py-3 btn-ghost text-xs flex items-center justify-center space-x-3">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.95H1.14v3.15C3.12 21.36 7.24 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.25c-.25-.72-.38-1.49-.38-2.25s.13-1.53.38-2.25V6.6H1.14C.41 8.09 0 9.77 0 12s.41 3.91 1.14 5.4l4.14-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.24 0 3.12 2.64 1.14 6.6l4.14 3.15c.95-2.84 3.6-4.95 6.72-4.95z"/></svg>
-                            <span>Continue with Google</span>
-                        </button>
-
-                        <form onsubmit="adminEmailLogin(event)" class="space-y-4">
+                        <form onsubmit="handlePasswordLogin(event)" class="space-y-4">
                             <div>
-                                <label class="block text-xs font-bold text-sec mb-1.5">Admin Email</label>
-                                <input type="email" id="admin-email" required class="input-field px-4 py-3 text-sm" placeholder="hanif@hawme.shop">
+                                <label class="block text-xs font-bold text-sec mb-1.5">Admin Password</label>
+                                <input type="password" id="admin-password-input" required autofocus class="input-field px-4 py-3.5 text-sm text-center tracking-widest" placeholder="••••••••••">
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-sec mb-1.5">Password</label>
-                                <input type="password" id="admin-pass" required class="input-field px-4 py-3 text-sm" placeholder="••••••••">
-                            </div>
-                            <button type="submit" class="w-full py-3.5 btn-cta text-sm">Sign In to Admin</button>
+                            <button type="submit" class="w-full py-3.5 btn-cta text-sm">Unlock Admin Panel</button>
                         </form>
-                    </div>
-                </div>
-            `;
-            lucide.createIcons();
-            return;
-        }
-
-        if (!s.isAuthorized) {
-            root.innerHTML = `
-                <div class="min-h-[75vh] flex items-center justify-center px-4">
-                    <div class="max-w-md w-full card-outer p-7 text-center space-y-4">
-                        <i data-lucide="shield-alert" class="w-10 h-10 text-red-400 mx-auto"></i>
-                        <h2 class="text-xl font-black">Unauthorized Account</h2>
-                        <p class="text-xs text-sec leading-relaxed">
-                            Signed in as <strong>${window.escapeHTML(s.user.email)}</strong>. This account does not have administrator permissions. Add your email to <code>AUTHORIZED_ADMIN_EMAILS</code> or set <code>role: "admin"</code> in Firestore <code>users/${window.escapeHTML(s.user.uid)}</code>.
-                        </p>
-                        <button onclick="adminLogout()" class="w-full py-3 btn-ghost text-xs">Switch Account</button>
                     </div>
                 </div>
             `;
@@ -682,11 +818,13 @@
         const pendingWithdrawals = s.withdrawals.filter(w => w.status !== 'Completed');
         const creatorsCount = s.users.filter(u => u.role === 'creator').length;
         const companiesCount = s.users.filter(u => u.role === 'company').length;
+        const totalEscrowVolume = s.transactions.reduce((sum, t) => sum + Number(t.amount_etb || 0), 0);
 
         const tabs = [
             { id: 'overview', label: 'Overview' },
             { id: 'users', label: `Users (${s.users.length})` },
-            { id: 'offers', label: `Offers (${s.campaigns.length})` },
+            { id: 'offers', label: `Offers & Approvals (${s.campaigns.length})` },
+            { id: 'notifications', label: 'Send Notifications' },
             { id: 'verifications', label: `Verifications (${pendingVerifications.length})` },
             { id: 'payouts', label: `Payouts & Escrow (${pendingWithdrawals.length})` },
             { id: 'community', label: `Announcements (${s.posts.length})` }
@@ -694,7 +832,6 @@
 
         root.innerHTML = `
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-                <!-- Navigation Tabs -->
                 <div class="flex items-center gap-2 overflow-x-auto pb-1">
                     ${tabs.map(t => `
                         <button onclick="setAdminTab('${t.id}')" class="px-4 py-2.5 text-xs whitespace-nowrap ${s.tab === t.id ? 'btn-cta' : 'btn-ghost'}">
@@ -706,42 +843,44 @@
                 ${s.tab === 'overview' ? `
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 tabular-nums">
                         <div class="card-outer p-5">
-                            <p class="text-xs text-sec font-bold">Total Users</p>
+                            <p class="text-xs text-sec font-bold">Total Accounts</p>
                             <p class="text-2xl font-black mt-1">${s.users.length}</p>
                             <p class="text-xs text-mut mt-1">${creatorsCount} Creators · ${companiesCount} Companies</p>
                         </div>
                         <div class="card-outer p-5">
-                            <p class="text-xs text-sec font-bold">Marketplace Offers</p>
-                            <p class="text-2xl font-black text-accent mt-1">${s.campaigns.length}</p>
-                            <p class="text-xs text-mut mt-1">${s.campaigns.filter(c => c.status !== 'Completed').length} Active</p>
+                            <p class="text-xs text-sec font-bold">Offers & Applications</p>
+                            <p class="text-2xl font-black text-accent mt-1">${s.campaigns.length} <span class="text-sm font-bold text-sec">/ ${s.applications.length} apps</span></p>
+                            <p class="text-xs text-mut mt-1">${s.campaigns.filter(c => c.status !== 'Completed').length} Active Offers</p>
                         </div>
                         <div class="card-outer p-5">
-                            <p class="text-xs text-sec font-bold">Pending Verifications</p>
+                            <p class="text-xs text-sec font-bold">Verification Queue</p>
                             <p class="text-2xl font-black text-sky-400 mt-1">${pendingVerifications.length}</p>
-                            <p class="text-xs text-mut mt-1">Awaiting badge review</p>
+                            <p class="text-xs text-mut mt-1">Pending badge reviews</p>
                         </div>
                         <div class="card-outer p-5">
-                            <p class="text-xs text-sec font-bold">Pending Payouts</p>
-                            <p class="text-2xl font-black text-emerald-400 mt-1">${pendingWithdrawals.length}</p>
-                            <p class="text-xs text-mut mt-1">Telebirr / Bank transfers</p>
+                            <p class="text-xs text-sec font-bold">Escrow Volume</p>
+                            <p class="text-2xl font-black text-emerald-400 mt-1">ETB ${totalEscrowVolume.toLocaleString()}</p>
+                            <p class="text-xs text-mut mt-1">${pendingWithdrawals.length} Pending Payouts</p>
                         </div>
                     </div>
 
-                    <!-- Quick Moderation Queues -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="card-outer p-6 space-y-4">
                             <div class="flex items-center justify-between">
-                                <h3 class="font-extrabold text-base">Recent Users</h3>
-                                <button onclick="setAdminTab('users')" class="text-xs font-bold text-accent hover:underline">Manage all →</button>
+                                <h3 class="font-extrabold text-base">Accounts Control</h3>
+                                <button onclick="setAdminTab('users')" class="text-xs font-bold text-accent hover:underline">All Users →</button>
                             </div>
                             <div class="space-y-2.5">
-                                ${s.users.slice(0, 5).map(u => `
+                                ${s.users.slice(0, 6).map(u => `
                                     <div class="p-3.5 card-inner flex items-center justify-between gap-3">
                                         <div class="min-w-0">
                                             <p class="text-xs font-extrabold truncate">${window.escapeHTML(u.name || 'User')} <span class="text-accent">@${window.escapeHTML(u.hawme_username || '')}</span></p>
                                             <p class="text-[11px] text-sec truncate">${window.escapeHTML(u.email || '')} · ${window.escapeHTML(u.role || 'creator')}</p>
                                         </div>
-                                        <button onclick="promptDeleteUser('${u.id}', '${window.escapeHTML(u.name || 'User')}', '${window.escapeHTML(u.role || 'user')}')" class="px-3 py-1.5 btn-danger text-xs shrink-0">Delete</button>
+                                        <div class="flex items-center space-x-1.5 shrink-0">
+                                            <button onclick="openEditUserModal('${u.id}')" class="px-2.5 py-1.5 btn-ghost text-xs">Edit</button>
+                                            <button onclick="promptDeleteUser('${u.id}', '${window.escapeHTML(u.name || 'User')}', '${window.escapeHTML(u.role || 'user')}')" class="px-2.5 py-1.5 btn-danger text-xs">Delete</button>
+                                        </div>
                                     </div>
                                 `).join('') || `<p class="text-xs text-sec">No users found.</p>`}
                             </div>
@@ -749,17 +888,22 @@
 
                         <div class="card-outer p-6 space-y-4">
                             <div class="flex items-center justify-between">
-                                <h3 class="font-extrabold text-base">Live & Recent Offers</h3>
-                                <button onclick="setAdminTab('offers')" class="text-xs font-bold text-accent hover:underline">Manage all →</button>
+                                <h3 class="font-extrabold text-base">Offers & Approvals</h3>
+                                <button onclick="setAdminTab('offers')" class="text-xs font-bold text-accent hover:underline">All Offers →</button>
                             </div>
                             <div class="space-y-2.5">
-                                ${s.campaigns.slice(0, 5).map(c => `
+                                ${s.campaigns.slice(0, 6).map(c => `
                                     <div class="p-3.5 card-inner flex items-center justify-between gap-3">
                                         <div class="min-w-0">
                                             <p class="text-xs font-extrabold truncate">${window.escapeHTML(c.title)}</p>
-                                            <p class="text-[11px] text-sec truncate">${window.escapeHTML(c.brand)} · ${window.escapeHTML(c.reward)} · ${window.escapeHTML(c.status || 'Active')}</p>
+                                            <p class="text-[11px] text-sec truncate">${window.escapeHTML(c.brand)} · ${window.escapeHTML(c.reward)} · <strong class="text-accent">${window.escapeHTML(c.status || 'Active')}</strong></p>
                                         </div>
-                                        <button onclick="promptDeleteOffer('${c.id}', '${window.escapeHTML(c.title)}')" class="px-3 py-1.5 btn-danger text-xs shrink-0">Delete</button>
+                                        <div class="flex items-center space-x-1.5 shrink-0">
+                                            <button onclick="setOfferStatus('${c.id}', '${c.status === 'Completed' ? 'Active' : 'Completed'}', '${window.escapeHTML(c.user_id || '')}', '${window.escapeHTML(c.title)}')" class="px-2.5 py-1.5 btn-ghost text-xs">
+                                                ${c.status === 'Completed' ? 'Reopen' : 'Complete'}
+                                            </button>
+                                            <button onclick="promptDeleteOffer('${c.id}', '${window.escapeHTML(c.title)}')" class="px-2.5 py-1.5 btn-danger text-xs">Delete</button>
+                                        </div>
                                     </div>
                                 `).join('') || `<p class="text-xs text-sec">No offers found.</p>`}
                             </div>
@@ -769,6 +913,7 @@
 
                 ${s.tab === 'users' ? renderUsersTab() : ''}
                 ${s.tab === 'offers' ? renderOffersTab() : ''}
+                ${s.tab === 'notifications' ? renderNotificationsBroadcastTab() : ''}
                 ${s.tab === 'verifications' ? renderVerificationsTab() : ''}
                 ${s.tab === 'payouts' ? renderPayoutsTab() : ''}
                 ${s.tab === 'community' ? renderCommunityTab() : ''}
@@ -795,9 +940,9 @@
                 <div class="card-outer p-4 flex flex-col sm:flex-row gap-3 justify-between">
                     <input type="search" oninput="window.adminState.search = this.value; renderAdminApp();" value="${window.escapeHTML(s.search)}" placeholder="Search name, @username, TikTok, or email..." class="input-field px-4 py-2.5 text-xs sm:w-96">
                     <select onchange="window.adminState.roleFilter = this.value; renderAdminApp();" class="input-field px-3.5 py-2.5 text-xs font-bold sm:w-44">
-                        <option value="all" ${s.roleFilter === 'all' ? 'selected' : ''}>All Accounts</option>
-                        <option value="creator" ${s.roleFilter === 'creator' ? 'selected' : ''}>Creators Only</option>
-                        <option value="company" ${s.roleFilter === 'company' ? 'selected' : ''}>Companies Only</option>
+                        <option value="all" ${s.roleFilter === 'all' ? 'selected' : ''}>All Accounts (${s.users.length})</option>
+                        <option value="creator" ${s.roleFilter === 'creator' ? 'selected' : ''}>Creators (${s.users.filter(u => u.role === 'creator').length})</option>
+                        <option value="company" ${s.roleFilter === 'company' ? 'selected' : ''}>Companies (${s.users.filter(u => u.role === 'company').length})</option>
                     </select>
                 </div>
 
@@ -813,19 +958,15 @@
                                         <span class="px-2 py-0.5 card-inner text-[11px] font-bold uppercase">${window.escapeHTML(u.role || 'creator')}</span>
                                         ${u.is_verified ? `<span class="text-xs font-bold text-sky-400">Verified</span>` : ''}
                                     </div>
-                                    <p class="text-xs text-sec truncate mt-0.5">
+                                    <p class="text-xs text-sec truncate mt-0.5 tabular-nums">
                                         ${window.escapeHTML(u.email || '')} · TikTok ${window.escapeHTML(u.tiktok_username || '')}
-                                        ${u.role === 'creator' ? ` · <span class="tabular-nums">${Number(u.followers || 0).toLocaleString()} followers</span>` : ''}
+                                        ${u.role === 'creator' ? ` · ${Number(u.followers || 0).toLocaleString()} followers · ${Number(u.completed_promotions || 0)} done` : ''}
                                     </p>
                                 </div>
                             </div>
                             <div class="flex items-center space-x-2 shrink-0">
-                                <button onclick="toggleUserVerified('${u.id}', ${Boolean(u.is_verified)})" class="px-3.5 py-2 btn-ghost text-xs">
-                                    ${u.is_verified ? 'Unverify' : 'Verify Badge'}
-                                </button>
-                                <button onclick="promptDeleteUser('${u.id}', '${window.escapeHTML(u.name || 'User')}', '${window.escapeHTML(u.role || 'user')}')" class="px-3.5 py-2 btn-danger text-xs">
-                                    Delete User
-                                </button>
+                                <button onclick="openEditUserModal('${u.id}')" class="px-3.5 py-2 btn-ghost text-xs">Edit Member</button>
+                                <button onclick="promptDeleteUser('${u.id}', '${window.escapeHTML(u.name || 'User')}', '${window.escapeHTML(u.role || 'user')}')" class="px-3.5 py-2 btn-danger text-xs">Delete Account</button>
                             </div>
                         </div>
                     `).join('') || `<div class="p-8 text-center text-xs text-sec">No matching users found.</div>`}
@@ -836,15 +977,26 @@
 
     function renderOffersTab() {
         const s = window.adminState;
+        const filteredOffers = s.campaigns.filter(c => {
+            if (s.offerFilter === 'active') return c.status !== 'Completed';
+            if (s.offerFilter === 'completed') return c.status === 'Completed';
+            return true;
+        });
+
         return `
             <div class="space-y-6">
                 <div class="card-outer overflow-hidden">
-                    <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
-                        <h3 class="font-extrabold text-sm">All Promotions & Challenges (${s.campaigns.length})</h3>
+                    <div class="px-6 py-4 border-b flex flex-wrap items-center justify-between gap-3" style="border-color: var(--border-normal);">
+                        <h3 class="font-extrabold text-sm">Marketplace Offers & Status Approvals (${filteredOffers.length})</h3>
+                        <select onchange="window.adminState.offerFilter = this.value; renderAdminApp();" class="input-field px-3 py-1.5 text-xs font-bold w-auto">
+                            <option value="all" ${s.offerFilter === 'all' ? 'selected' : ''}>All Offers</option>
+                            <option value="active" ${s.offerFilter === 'active' ? 'selected' : ''}>Active Only</option>
+                            <option value="completed" ${s.offerFilter === 'completed' ? 'selected' : ''}>Completed Only</option>
+                        </select>
                     </div>
                     <div class="divide-y" style="border-color: var(--border-normal);">
-                        ${s.campaigns.map(c => `
-                            <div class="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        ${filteredOffers.map(c => `
+                            <div class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                                 <div class="flex items-center space-x-3.5 min-w-0">
                                     <img src="${window.escapeHTML(c.image_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300')}" class="w-14 h-14 rounded-xl object-cover shrink-0">
                                     <div class="min-w-0">
@@ -856,16 +1008,40 @@
                                         <p class="text-xs text-sec mt-0.5 tabular-nums">${window.escapeHTML(c.brand)} · ${window.escapeHTML(c.reward)} · Min ${Number(c.min_followers || 0).toLocaleString()} followers</p>
                                     </div>
                                 </div>
-                                <div class="flex items-center space-x-2 shrink-0">
-                                    <button onclick="toggleOfferStatus('${c.id}', '${window.escapeHTML(c.status || 'Active')}')" class="px-3.5 py-2 btn-ghost text-xs">
-                                        ${c.status === 'Completed' ? 'Reopen Offer' : 'Mark Completed'}
-                                    </button>
-                                    <button onclick="promptDeleteOffer('${c.id}', '${window.escapeHTML(c.title)}')" class="px-3.5 py-2 btn-danger text-xs">
-                                        Delete Offer
-                                    </button>
+                                <div class="flex items-center space-x-2 flex-wrap shrink-0">
+                                    ${c.status !== 'Active' ? `<button onclick="setOfferStatus('${c.id}', 'Active', '${window.escapeHTML(c.user_id || '')}', '${window.escapeHTML(c.title)}')" class="px-3 py-2 btn-ghost text-xs">Approve / Activate</button>` : ''}
+                                    ${c.status !== 'Completed' ? `<button onclick="setOfferStatus('${c.id}', 'Completed', '${window.escapeHTML(c.user_id || '')}', '${window.escapeHTML(c.title)}')" class="px-3 py-2 btn-cta text-xs">Approve & Complete</button>` : ''}
+                                    <button onclick="promptDeleteOffer('${c.id}', '${window.escapeHTML(c.title)}')" class="px-3 py-2 btn-danger text-xs">Delete Offer</button>
                                 </div>
                             </div>
-                        `).join('') || `<div class="p-8 text-center text-xs text-sec">No offers posted yet.</div>`}
+                        `).join('') || `<div class="p-8 text-center text-xs text-sec">No offers found.</div>`}
+                    </div>
+                </div>
+
+                <!-- Applications & Video Submissions Review -->
+                <div class="card-outer overflow-hidden">
+                    <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
+                        <h3 class="font-extrabold text-sm">Creator Applications & Video Submissions (${s.applications.length})</h3>
+                    </div>
+                    <div class="divide-y" style="border-color: var(--border-normal);">
+                        ${s.applications.map(a => `
+                            <div class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                <div class="space-y-1">
+                                    <div class="flex items-center space-x-2 flex-wrap">
+                                        <span class="font-extrabold text-sm">${window.escapeHTML(a.creator_name)}</span>
+                                        <span class="text-xs text-accent font-bold">${window.escapeHTML(a.creator_tiktok)}</span>
+                                        <span class="px-2.5 py-0.5 card-inner text-xs font-bold">${window.escapeHTML(a.status)}</span>
+                                    </div>
+                                    <p class="text-xs text-sec">Campaign: <strong>${window.escapeHTML(a.campaign_title)}</strong></p>
+                                    ${a.video_url ? `<p class="text-xs">Submitted Video: <a href="${window.escapeHTML(a.video_url)}" target="_blank" class="text-accent font-bold underline">${window.escapeHTML(a.video_url)}</a></p>` : ''}
+                                </div>
+                                <div class="flex items-center space-x-2 flex-wrap shrink-0">
+                                    ${a.status !== 'Accepted' && a.status !== 'Completed' ? `<button onclick="adminSetApplicationStatus('${a.id}', 'Accepted')" class="px-3 py-1.5 btn-ghost text-xs">Approve App</button>` : ''}
+                                    ${a.status !== 'Completed' ? `<button onclick="adminSetApplicationStatus('${a.id}', 'Completed')" class="px-3 py-1.5 btn-cta text-xs">Complete Work</button>` : ''}
+                                    <button onclick="promptDeleteApplication('${a.id}')" class="px-3 py-1.5 btn-danger text-xs">Delete</button>
+                                </div>
+                            </div>
+                        `).join('') || `<div class="p-8 text-center text-xs text-sec">No applications recorded.</div>`}
                     </div>
                 </div>
 
@@ -876,15 +1052,81 @@
                     </div>
                     <div class="divide-y" style="border-color: var(--border-normal);">
                         ${s.deals.map(d => `
-                            <div class="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div>
+                            <div class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                <div class="space-y-1">
                                     <p class="text-xs font-extrabold tabular-nums">${window.escapeHTML(d.company_name)} · ETB ${Number(d.amount_etb || 0).toLocaleString()} · <span class="text-accent">${window.escapeHTML(d.status)}</span></p>
-                                    <p class="text-xs text-sec mt-0.5">${window.escapeHTML(d.description)}</p>
+                                    <p class="text-xs text-sec">${window.escapeHTML(d.description)}</p>
                                     ${d.video_url ? `<a href="${window.escapeHTML(d.video_url)}" target="_blank" class="text-xs text-accent underline font-bold">${window.escapeHTML(d.video_url)}</a>` : ''}
                                 </div>
-                                <button onclick="promptDeleteDeal('${d.id}')" class="px-3.5 py-2 btn-danger text-xs shrink-0">Delete Deal</button>
+                                <div class="flex items-center space-x-2 flex-wrap shrink-0">
+                                    <button onclick="adminUpdateDealStatus('${d.id}', 'Escrow_Deposited')" class="px-3 py-1.5 btn-ghost text-xs">Approve Escrow</button>
+                                    <button onclick="promptDeleteDeal('${d.id}')" class="px-3 py-1.5 btn-danger text-xs">Delete Deal</button>
+                                </div>
                             </div>
                         `).join('') || `<div class="p-8 text-center text-xs text-sec">No direct deals recorded.</div>`}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderNotificationsBroadcastTab() {
+        const s = window.adminState;
+        return `
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <form onsubmit="handleSendAdminNotification(event)" class="card-outer p-6 space-y-4 h-fit">
+                    <h3 class="font-extrabold text-base">Send Notification to Creators</h3>
+                    <div>
+                        <label class="block text-xs font-bold text-sec mb-1.5">Target Recipients</label>
+                        <select id="notif-target-mode" onchange="document.getElementById('single-user-picker').classList.toggle('hidden', this.value !== 'single')" class="input-field px-3.5 py-2.5 text-xs font-bold">
+                            <option value="all_creators">All Creators (${s.users.filter(u => u.role === 'creator').length})</option>
+                            <option value="all_companies">All Companies (${s.users.filter(u => u.role === 'company').length})</option>
+                            <option value="all_users">All Platform Users (${s.users.length})</option>
+                            <option value="single">Specific Creator / Company</option>
+                        </select>
+                    </div>
+
+                    <div id="single-user-picker" class="hidden">
+                        <label class="block text-xs font-bold text-sec mb-1.5">Select Member</label>
+                        <select id="notif-specific-uid" class="input-field px-3.5 py-2.5 text-xs">
+                            ${s.users.map(u => `
+                                <option value="${u.id}">${window.escapeHTML(u.name || 'User')} (@${window.escapeHTML(u.hawme_username || u.email || '')}) — ${window.escapeHTML(u.role || 'creator')}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-sec mb-1.5">Notification Title</label>
+                        <input type="text" id="notif-title" required class="input-field px-3.5 py-2.5 text-xs" placeholder="New High-Paying Brand Offer">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-sec mb-1.5">Short Summary (Shown in List)</label>
+                        <input type="text" id="notif-message" required class="input-field px-3.5 py-2.5 text-xs" placeholder="Apply today to earn up to 15,000 ETB.">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-sec mb-1.5">Full Details (Shown When Clicked)</label>
+                        <textarea id="notif-detail" rows="4" required class="input-field p-3.5 text-xs" placeholder="Write complete instructions, payout rules, or announcement details..."></textarea>
+                    </div>
+
+                    <button type="submit" id="send-notif-btn" class="w-full py-3.5 btn-cta text-xs">Send Notification</button>
+                </form>
+
+                <div class="lg:col-span-2 card-outer overflow-hidden">
+                    <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
+                        <h3 class="font-extrabold text-sm">Recent Sent Notifications (${s.notifications.length})</h3>
+                    </div>
+                    <div class="divide-y max-h-[620px] overflow-y-auto" style="border-color: var(--border-normal);">
+                        ${s.notifications.slice(0, 30).map(n => `
+                            <div class="p-4 space-y-1">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="font-extrabold text-xs">${window.escapeHTML(n.title || 'Notification')}</span>
+                                    <span class="text-[11px] text-mut tabular-nums">${n.created_at ? new Date(n.created_at).toLocaleString() : ''}</span>
+                                </div>
+                                <p class="text-xs text-sec">${window.escapeHTML(n.message || '')}</p>
+                            </div>
+                        `).join('') || `<div class="p-8 text-center text-xs text-sec">No notifications sent yet.</div>`}
                     </div>
                 </div>
             </div>
@@ -896,7 +1138,7 @@
         return `
             <div class="card-outer overflow-hidden">
                 <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
-                    <h3 class="font-extrabold text-sm">Verification Queue (${s.verifications.length})</h3>
+                    <h3 class="font-extrabold text-sm">Verification Requests (${s.verifications.length})</h3>
                 </div>
                 <div class="divide-y" style="border-color: var(--border-normal);">
                     ${s.verifications.map(v => `
@@ -907,7 +1149,7 @@
                                     <span class="px-2.5 py-0.5 card-inner text-xs font-bold uppercase">${window.escapeHTML(v.role || 'creator')}</span>
                                     <span class="px-2.5 py-0.5 card-inner text-xs font-bold text-accent">${window.escapeHTML(v.status)}</span>
                                 </div>
-                                ${v.verification_code ? `<p class="text-xs text-sec">Required TikTok Bio Code: <code class="font-mono font-bold text-accent">${window.escapeHTML(v.verification_code)}</code></p>` : ''}
+                                ${v.verification_code ? `<p class="text-xs text-sec">TikTok Bio Code: <code class="font-mono font-bold text-accent">${window.escapeHTML(v.verification_code)}</code></p>` : ''}
                                 ${v.tin_number ? `<p class="text-xs text-sec tabular-nums">TIN: ${window.escapeHTML(v.tin_number)} · <a href="${window.escapeHTML(v.evidence_url || '#')}" target="_blank" class="text-accent underline">View Evidence</a></p>` : ''}
                             </div>
                             <div class="flex items-center space-x-2 shrink-0">
@@ -1011,14 +1253,19 @@
         `;
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
         const savedTheme = localStorage.getItem('hawme_theme_mode') || 'dark';
         if (savedTheme === 'light') {
             document.documentElement.classList.remove('dark');
             const icon = document.getElementById('theme-toggle-icon');
             if (icon) icon.setAttribute('data-lucide', 'moon');
         }
-        renderAdminApp();
+        updateHeaderSessionUI();
+        if (window.adminState.unlocked) {
+            await refreshAllAdminData();
+        } else {
+            renderAdminApp();
+        }
     });
 </script>
 </body>
