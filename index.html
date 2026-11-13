@@ -38,31 +38,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         /* ==========================================================================
-           DESIGN TOKENS: DARK (#080808 + #25F4EE / #FE2C55) & LIGHT (WHITE + SAGE)
+           DESIGN TOKENS: DARK (MULTI-SHADE #080808 / #111111 / #161616) & LIGHT (WHITE + SAGE)
            ========================================================================== */
         :root {
             --bg-main: #080808;
-            --bg-sec: #111111;
-            --bg-card: #161616;
-            --bg-elev: #1C1C1C;
+            --bg-sec: #101113;
+            --bg-card: #151619;
+            --bg-elev: #1C1E22;
             --text-primary: #F4F4F5;
             --text-secondary: #A1A1AA;
             --text-muted: #71717A;
             --accent-primary: #25F4EE;
             --accent-secondary: #FE2C55;
-            --border-normal: #262626;
+            --border-normal: #26272B;
             --border-focus: #25F4EE;
             --btn-cta-bg: linear-gradient(90deg, #FE2C55 0%, #25F4EE 100%);
             --btn-cta-text: #080808;
             --nav-backdrop: rgba(8, 8, 8, 0.90);
-            --atmosphere: radial-gradient(ellipse 80% 340px at 50% -60px, rgba(37, 244, 238, 0.08), rgba(254, 44, 85, 0.05) 55%, transparent 80%);
+            --atmosphere:
+                radial-gradient(ellipse 85% 420px at 50% -40px, rgba(37, 244, 238, 0.11), rgba(254, 44, 85, 0.06) 45%, transparent 78%),
+                radial-gradient(circle at 12% 38%, rgba(254, 44, 85, 0.05), transparent 42%),
+                radial-gradient(circle at 88% 72%, rgba(37, 244, 238, 0.05), transparent 45%),
+                linear-gradient(180deg, #080808 0%, #0D0E10 52%, #111215 100%);
         }
 
         html:not(.dark) {
-            --bg-main: #F7FAF6;
-            --bg-sec: #F0F5EF;
+            --bg-main: #F4F8F3;
+            --bg-sec: #ECF3EB;
             --bg-card: #FFFFFF;
-            --bg-elev: #F4F8F3;
+            --bg-elev: #F1F6F0;
             --text-primary: #17221B;
             --text-secondary: #4B5B51;
             --text-muted: #738278;
@@ -72,8 +76,11 @@
             --border-focus: #588B6C;
             --btn-cta-bg: linear-gradient(90deg, #315C42 0%, #588B6C 100%);
             --btn-cta-text: #FFFFFF;
-            --nav-backdrop: rgba(247, 250, 246, 0.92);
-            --atmosphere: radial-gradient(ellipse 85% 360px at 50% -60px, rgba(118, 168, 137, 0.22), rgba(220, 237, 224, 0.12) 55%, transparent 80%);
+            --nav-backdrop: rgba(244, 248, 243, 0.92);
+            --atmosphere:
+                radial-gradient(ellipse 90% 420px at 50% -50px, rgba(118, 168, 137, 0.24), rgba(220, 237, 224, 0.14) 55%, transparent 80%),
+                radial-gradient(circle at 90% 35%, rgba(88, 139, 108, 0.08), transparent 45%),
+                linear-gradient(180deg, #F7FAF6 0%, #EFF5EE 55%, #E8F1E7 100%);
         }
 
         * { box-sizing: border-box; }
@@ -95,7 +102,6 @@
             background-image: var(--atmosphere);
         }
 
-        /* Concentric Radius System: Outer 24px -> Padding 20px -> Inner 12px */
         .card-outer {
             background-color: var(--bg-card);
             border: 1px solid var(--border-normal);
@@ -189,7 +195,7 @@
     <div id="toast-container" class="fixed top-4 right-4 left-4 sm:left-auto z-[70] flex flex-col space-y-2.5 pointer-events-none"></div>
 
 <!-- ==========================================================================
-     MODALS (STEPPED ONBOARDING FOR GOOGLE SIGN-IN, PROFILE EDIT, VERIFICATION)
+     MODALS
      ========================================================================== -->
 
 <!-- Google Sign-In Stepped Profile Completion Modal -->
@@ -204,7 +210,6 @@
         </div>
 
         <form onsubmit="handleCompleteProfile(event)" class="space-y-4">
-            <!-- Step 1: Role + Unique HAWME Username + TikTok -->
             <div id="google-onboard-step-1" class="space-y-4">
                 <div class="grid grid-cols-2 gap-3">
                     <button type="button" onclick="setModalRole('creator')" id="modal-role-creator" class="py-2.5 rounded-xl btn-cta text-xs">Creator</button>
@@ -262,7 +267,6 @@
                 <button type="button" onclick="advanceGoogleStep(2)" class="w-full py-3.5 btn-cta text-sm">Next: Profile Picture</button>
             </div>
 
-            <!-- Step 2: Optional Profile Picture (Skip or Complete) -->
             <div id="google-onboard-step-2" class="hidden space-y-5">
                 <div class="flex flex-col items-center text-center space-y-3 py-2">
                     <img id="modal-avatar-preview" src="https://api.dicebear.com/7.x/initials/svg?seed=H&backgroundColor=25F4EE" class="w-24 h-24 rounded-full object-cover border-2 border-accent">
@@ -278,7 +282,7 @@
     </div>
 </div>
 
-<!-- Edit Profile Modal (HAWME Username is locked once claimed so each user has 1 unique username) -->
+<!-- Edit Profile Modal -->
 <div id="edit-profile-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
     <div class="card-outer p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 my-8">
         <div class="flex items-center justify-between">
@@ -432,6 +436,11 @@
     </div>
 </div>
 
+<!-- Notification Detail Modal -->
+<div id="notification-detail-modal" onclick="if(event.target===this) closeNotificationDetailModal()" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+    <div id="notification-detail-body" class="card-outer p-6 max-w-md w-full shadow-2xl space-y-4 my-8"></div>
+</div>
+
 <!-- Creator Public Profile Modal -->
 <div id="creator-detail-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
     <div id="creator-detail-modal-content" class="card-outer p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-5 my-8"></div>
@@ -545,13 +554,13 @@
 </div>
 
 <!-- ==========================================================================
-     MAIN HEADER (CLEAN, NO FILLER BADGES, CONSISTENT ICONS)
+     MAIN HEADER
      ========================================================================== -->
 <header class="sticky top-0 z-40 backdrop-blur-md border-b" style="background: var(--nav-backdrop); border-color: var(--border-normal);">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div class="flex items-center space-x-8">
             <a href="#" onclick="switchView('home')" class="flex items-center space-x-2.5 group">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] dark:from-[#FE2C55] dark:to-[#25F4EE] flex items-center justify-center p-[2px]">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center p-[2px]">
                     <div class="w-full h-full rounded-[10px] flex items-center justify-center" style="background: var(--bg-main);">
                         <span class="font-black text-accent text-lg">H</span>
                     </div>
@@ -559,7 +568,7 @@
                 <span class="font-extrabold text-lg tracking-tight">HAWME</span>
             </a>
 
-            <!-- Desktop Nav Links (Includes About so visitors can read before registering) -->
+            <!-- Desktop Nav Links -->
             <nav class="hidden md:flex items-center space-x-1">
                 <button onclick="switchView('discover')" class="nav-link px-3.5 py-2 rounded-xl text-xs font-bold text-sec hover:opacity-100 transition-all" data-view="discover">Explore</button>
                 <button onclick="switchView('promotions')" class="nav-link px-3.5 py-2 rounded-xl text-xs font-bold text-sec hover:opacity-100 transition-all" data-view="promotions">Promotions</button>
@@ -571,6 +580,11 @@
         </div>
 
         <div class="flex items-center space-x-2.5">
+            <!-- Mobile Leaderboard Quick Button for Companies (so Companies can view Leaderboard & send offers on mobile too) -->
+            <button id="header-company-lb-btn" onclick="switchView('leaderboard')" class="hidden md:hidden p-2 rounded-xl btn-ghost" title="Leaderboard">
+                <i data-lucide="trophy" class="w-4 h-4 text-accent"></i>
+            </button>
+
             <button onclick="toggleThemeMode()" class="p-2 rounded-xl btn-ghost" title="Switch Theme">
                 <i id="theme-toggle-icon" data-lucide="sun" class="w-4 h-4 text-accent"></i>
             </button>
@@ -580,13 +594,11 @@
                 <span id="unread-dot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FE2C55]"></span>
             </button>
 
-            <!-- Logged-out Actions: Visitors browse freely until clicking Get Started -->
             <div id="auth-actions" class="flex items-center space-x-2">
                 <button onclick="switchView('login')" class="px-3.5 py-2 text-xs font-bold text-sec hover:opacity-100">Login</button>
                 <button onclick="switchView('role-select')" class="px-4 py-2 text-xs btn-cta">Get Started</button>
             </div>
 
-            <!-- Logged-in Profile Menu -->
             <div id="user-profile-menu" class="hidden relative items-center space-x-2.5 pl-2 border-l" style="border-color: var(--border-normal);">
                 <button onclick="toggleUserDropdown()" class="flex items-center space-x-2 focus:outline-none">
                     <img id="nav-user-avatar" src="" class="hidden w-8 h-8 rounded-full object-cover border border-accent">
@@ -606,6 +618,10 @@
                     <button onclick="document.getElementById('user-dropdown').classList.add('hidden'); navigateToDashboard();" class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-white/5 flex items-center space-x-2">
                         <i data-lucide="layout-dashboard" class="w-4 h-4 text-accent"></i>
                         <span>Activity & Dashboard</span>
+                    </button>
+                    <button onclick="document.getElementById('user-dropdown').classList.add('hidden'); switchView('leaderboard');" class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-white/5 flex items-center space-x-2">
+                        <i data-lucide="trophy" class="w-4 h-4 text-accent"></i>
+                        <span>Leaderboard</span>
                     </button>
                     <button onclick="openVerificationModal()" class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-white/5 flex items-center space-x-2">
                         <i data-lucide="badge-check" class="w-4 h-4 text-sky-400"></i>
@@ -630,7 +646,7 @@
 <main id="app-container" class="flex-grow relative z-10"></main>
 
 <!-- ==========================================================================
-     MOBILE BOTTOM NAVIGATION (CREATOR 5-TAB BAR & COMPANY 5-TAB BAR)
+     MOBILE BOTTOM NAVIGATION
      ========================================================================== -->
 <nav id="mobile-creator-nav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 mobile-dock h-16 grid grid-cols-5 items-center">
     <button onclick="switchView('home')" data-mnav="home" class="mobile-nav-btn relative h-full flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-sec">
@@ -778,9 +794,11 @@
     window.creatorsFilterMode = 'followers';
     window.leaderboardTab = 'creators';
     window.profileContentTab = 'promotions';
+    window.creatorActivityTab = 'collaborations';
+    window.companyActivityTab = 'offers';
     window.activeEscrowDeal = null;
+    window.cachedNotifications = [];
 
-    // Multi-step Signup State
     window.signupWizard = {
         step: 1,
         email: '',
@@ -820,7 +838,6 @@
         }
     };
 
-    // Theme Switcher (Dark: Original #080808 + #25F4EE/#FE2C55 | Light: White + Sage Green)
     window.toggleThemeMode = function() {
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('hawme_theme_mode', isDark ? 'dark' : 'light');
@@ -831,7 +848,6 @@
         lucide.createIcons();
     };
 
-    // Supabase Upload Function
     window.uploadImageToSupabase = async function(file) {
         const fileExt = file.name.split('.').pop().toLowerCase();
         const cleanFileName = `media_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
@@ -857,7 +873,6 @@
         return `${SUPABASE_CONFIG.storageUrl}/object/public/${SUPABASE_CONFIG.bucket}/${uploadPath}`;
     };
 
-    // Unique HAWME Username Validator (1 permanent unique username per user)
     let usernameCheckTimer = null;
     window.normalizeUsername = function(raw) {
         return String(raw || '').toLowerCase().replace(/^@+/, '').replace(/[^a-z0-9._]/g, '').trim();
@@ -905,7 +920,6 @@
         }, 320);
     };
 
-    // Auth State Tracker — Never forces visitors to sign up on landing; only triggers onboarding after clicking Get Started / Google
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             try {
@@ -916,6 +930,9 @@
                     localStorage.setItem('hawme_user', JSON.stringify(window.currentUser));
                     updateAuthUI();
                     loadUnreadNotifications();
+                    if (window.currentView === 'login' || window.currentView === 'signup') {
+                        switchView('home');
+                    }
                 } else {
                     window.pendingGoogleUser = user;
                     window.modalSelectedRole = window.selectedSignupRole || 'creator';
@@ -1043,10 +1060,7 @@
                 await loadLeaderboardData();
                 break;
             case 'profile':
-                if (!window.currentUser) {
-                    switchView('login');
-                    return;
-                }
+                if (!window.currentUser) { switchView('login'); return; }
                 container.innerHTML = renderProfilePageHTML();
                 await loadOwnProfileData();
                 break;
@@ -1080,11 +1094,7 @@
     }
 
     // ==========================================================================
-    // MULTI-STEP REGISTRATION WIZARD (4 CLEAN STEPS)
-    // Step 1: Gmail & Password (or Continue with Google)
-    // Step 2: Unique HAWME Username + TikTok Username
-    // Step 3: Profile Info (Name, Followers, Category, Bio)
-    // Step 4: Profile Picture (Skip or Complete)
+    // MULTI-STEP REGISTRATION WIZARD (REDIRECTS TO HOME AFTER SIGNUP/LOGIN)
     // ==========================================================================
     window.selectRoleForSignup = function(role) {
         window.selectedSignupRole = role;
@@ -1161,6 +1171,8 @@
                 w.followers = document.getElementById('step3-followers')?.value || '0';
                 w.category = document.getElementById('step3-category')?.value || 'Beauty & Skincare';
                 w.bio = document.getElementById('step3-bio')?.value.trim() || '';
+            } else {
+                w.bio = document.getElementById('step3-bio')?.value.trim() || '';
             }
         }
 
@@ -1182,7 +1194,6 @@
         return `
             <div class="min-h-[82vh] flex items-center justify-center px-4 py-10">
                 <div class="w-full max-w-md card-outer p-6 sm:p-8 shadow-2xl space-y-6">
-                    <!-- Progress Header -->
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">
                             <button type="button" onclick="switchView('role-select')" class="text-xs font-bold text-sec hover:opacity-100">
@@ -1356,14 +1367,13 @@
             localStorage.setItem('hawme_user', JSON.stringify(window.currentUser));
             updateAuthUI();
             window.showToast('Account created! Welcome to HAWME.', 'success');
-            navigateToDashboard();
+            switchView('home');
         } catch (err) {
             if (btn) { btn.disabled = false; btn.innerText = 'Complete Registration'; }
             window.showToast('Signup failed: ' + err.message, 'error');
         }
     };
 
-    // Google Onboarding Modal Stepper
     window.advanceGoogleStep = async function(stepNum) {
         if (stepNum === 2) {
             const name = document.getElementById('modal-name')?.value.trim();
@@ -1412,7 +1422,17 @@
 
     window.handleGoogleAuth = async function() {
         try {
-            await signInWithPopup(auth, googleProvider);
+            const result = await signInWithPopup(auth, googleProvider);
+            if (result?.user) {
+                const snap = await getDoc(doc(db, "users", result.user.uid));
+                if (snap.exists()) {
+                    window.currentUser = { uid: result.user.uid, email: result.user.email, ...snap.data() };
+                    localStorage.setItem('hawme_user', JSON.stringify(window.currentUser));
+                    updateAuthUI();
+                    window.showToast('Welcome back!', 'success');
+                    switchView('home');
+                }
+            }
         } catch (err) {
             if (err.code === 'auth/popup-closed-by-user') {
                 window.showToast('Google sign-in cancelled', 'info');
@@ -1470,7 +1490,7 @@
             window.pendingGoogleUser = null;
             updateAuthUI();
             window.showToast('Profile completed successfully!', 'success');
-            navigateToDashboard();
+            switchView('home');
         } catch (err) {
             if (btn) { btn.disabled = false; btn.innerText = 'Complete Setup'; }
             window.showToast(err.message, 'error');
@@ -1484,9 +1504,15 @@
         const btn = document.getElementById('login-submit-btn');
         if (btn) { btn.disabled = true; btn.innerText = 'Signing in...'; }
         try {
-            await signInWithEmailAndPassword(auth, email, pass);
+            const cred = await signInWithEmailAndPassword(auth, email, pass);
+            const snap = await getDoc(doc(db, "users", cred.user.uid));
+            if (snap.exists()) {
+                window.currentUser = { uid: cred.user.uid, email: cred.user.email, ...snap.data() };
+                localStorage.setItem('hawme_user', JSON.stringify(window.currentUser));
+                updateAuthUI();
+            }
             window.showToast('Welcome back!', 'success');
-            navigateToDashboard();
+            switchView('home');
         } catch (err) {
             if (btn) { btn.disabled = false; btn.innerText = 'Sign In'; }
             window.showToast('Login failed: ' + err.message, 'error');
@@ -1506,6 +1532,7 @@
         const authActions = document.getElementById('auth-actions');
         const profileMenu = document.getElementById('user-profile-menu');
         const bellBtn = document.getElementById('header-bell-btn');
+        const companyLbBtn = document.getElementById('header-company-lb-btn');
         const avatarImg = document.getElementById('nav-user-avatar');
         const initialDiv = document.getElementById('nav-user-initial');
         const mobileCreatorNav = document.getElementById('mobile-creator-nav');
@@ -1536,15 +1563,18 @@
             if (isCompany) {
                 mobileCreatorNav.classList.add('hidden');
                 mobileCompanyNav.classList.remove('hidden');
+                companyLbBtn?.classList.remove('hidden');
             } else {
                 mobileCompanyNav.classList.add('hidden');
                 mobileCreatorNav.classList.remove('hidden');
+                companyLbBtn?.classList.add('hidden');
             }
         } else {
             authActions.classList.remove('hidden');
             profileMenu.classList.add('hidden');
             profileMenu.classList.remove('flex');
             bellBtn.classList.add('hidden');
+            companyLbBtn?.classList.add('hidden');
             mobileCompanyNav.classList.add('hidden');
             mobileCreatorNav.classList.remove('hidden');
         }
@@ -1574,10 +1604,11 @@
     };
 
     // ==========================================================================
-    // LANDING HOME PAGE + ABOUT PAGE (BROWSABLE BEFORE REGISTRATION)
+    // HOME & ABOUT PAGES
     // ==========================================================================
     function renderHomeHTML() {
         const isLoggedIn = Boolean(window.currentUser);
+        const isCompany = window.currentUser?.role === 'company';
         return `
             <section class="relative pt-14 pb-16 lg:pt-20 lg:pb-24 border-b" style="border-color: var(--border-normal);">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1592,8 +1623,8 @@
                         </p>
                         <div class="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-2">
                             ${isLoggedIn ? `
-                                <button onclick="switchView('discover')" class="w-full sm:w-auto px-8 py-4 btn-cta text-sm">
-                                    Explore Opportunities
+                                <button onclick="switchView('${isCompany ? 'leaderboard' : 'discover'}')" class="w-full sm:w-auto px-8 py-4 btn-cta text-sm">
+                                    ${isCompany ? 'Discover Top Creators' : 'Explore Opportunities'}
                                 </button>
                                 <button onclick="navigateToDashboard()" class="w-full sm:w-auto px-8 py-4 btn-ghost text-sm">
                                     Open Activity
@@ -1611,7 +1642,6 @@
                 </div>
             </section>
 
-            <!-- Featured Promotions -->
             <section class="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between mb-6">
                     <div>
@@ -1626,7 +1656,6 @@
                 <div id="home-campaign-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
             </section>
 
-            <!-- Creator Challenges -->
             <section class="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t" style="border-color: var(--border-normal);">
                 <div class="flex items-center justify-between mb-6">
                     <div>
@@ -1641,7 +1670,6 @@
                 <div id="home-challenge-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
             </section>
 
-            <!-- How HAWME Works (About Summary on Home) -->
             <section class="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t" style="border-color: var(--border-normal);">
                 <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
                     <div>
@@ -1719,9 +1747,6 @@
         `;
     }
 
-    // ==========================================================================
-    // LOGIN PAGE (GMAIL + CONTINUE WITH GOOGLE)
-    // ==========================================================================
     function renderLoginHTML() {
         return `
             <div class="min-h-[80vh] flex items-center justify-center px-4 py-12">
@@ -1762,9 +1787,6 @@
         `;
     }
 
-    // ==========================================================================
-    // ROLE SELECTION
-    // ==========================================================================
     function renderRoleSelectHTML() {
         return `
             <div class="min-h-[75vh] flex items-center justify-center px-4 py-12">
@@ -1808,7 +1830,7 @@
     }
 
     // ==========================================================================
-    // TIKTOK-STYLE PROFILE PAGE (SHOWING PERMANENT @HAWME_USERNAME)
+    // TIKTOK-STYLE PROFILE PAGE
     // ==========================================================================
     function renderProfilePageHTML() {
         const u = window.currentUser || {};
@@ -1954,7 +1976,7 @@
     }
 
     // ==========================================================================
-    // EDIT PROFILE (PRESERVING LOCKED @HAWME_USERNAME)
+    // EDIT PROFILE & VERIFICATION
     // ==========================================================================
     window.openEditProfileModal = function() {
         if (!window.currentUser) return;
@@ -2030,15 +2052,9 @@
         }
     };
 
-    // ==========================================================================
-    // TIKTOK BIO OWNERSHIP VERIFICATION FLOW
-    // ==========================================================================
     window.openVerificationModal = async function() {
         document.getElementById('user-dropdown')?.classList.add('hidden');
-        if (!window.currentUser) {
-            switchView('login');
-            return;
-        }
+        if (!window.currentUser) { switchView('login'); return; }
         const modal = document.getElementById('verification-modal');
         const body = document.getElementById('verification-modal-body');
         modal.classList.remove('hidden');
@@ -2162,9 +2178,7 @@
             });
             window.showToast('Verification code generated.', 'success');
             openVerificationModal();
-        } catch (err) {
-            window.showToast('Error: ' + err.message, 'error');
-        }
+        } catch (err) { window.showToast('Error: ' + err.message, 'error'); }
     };
 
     window.confirmVerificationCodeAdded = async function(reqId) {
@@ -2176,15 +2190,14 @@
             await addDoc(collection(db, "notifications"), {
                 user_id: window.currentUser.uid,
                 message: "Your verification request has been submitted. Our team will review your information.",
+                detail: "Verification Code Evidence Submitted: Our administrators will verify the HAWME verification code in your TikTok bio within 24 hours.",
                 read: false,
                 created_at: new Date().toISOString()
             });
             window.showToast('Submitted for administrator review.', 'success');
             openVerificationModal();
             loadUnreadNotifications();
-        } catch (err) {
-            window.showToast('Error: ' + err.message, 'error');
-        }
+        } catch (err) { window.showToast('Error: ' + err.message, 'error'); }
     };
 
     window.submitCompanyVerification = async function(event) {
@@ -2201,13 +2214,11 @@
             });
             window.showToast('Submitted for administrator review.', 'success');
             openVerificationModal();
-        } catch (err) {
-            window.showToast('Error: ' + err.message, 'error');
-        }
+        } catch (err) { window.showToast('Error: ' + err.message, 'error'); }
     };
 
     // ==========================================================================
-    // EXPLORE, PROMOTIONS, CHALLENGES & CAMPAIGN CARDS
+    // EXPLORE, PROMOTIONS, CHALLENGES (EXCLUDING COMPLETED PROMOTIONS)
     // ==========================================================================
     function renderDiscoverHTML() {
         return `
@@ -2313,10 +2324,13 @@
         `;
     }
 
+    // Only returns active/open campaigns — completed promotions are removed from public marketplace feeds
     async function getCampaignsFromFirebase() {
         try {
             const snap = await getDocs(collection(db, "campaigns"));
-            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            return snap.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(c => c.status !== 'Completed');
         } catch (e) { return []; }
     }
 
@@ -2362,7 +2376,7 @@
             grid.innerHTML = `
                 <div class="col-span-3 text-center py-14 text-sec space-y-3">
                     <i data-lucide="inbox" class="w-10 h-10 mx-auto text-mut"></i>
-                    <p class="text-xs">No offers posted yet.</p>
+                    <p class="text-xs">No active offers available right now.</p>
                     ${window.currentUser?.role === 'company' ? `
                         <button onclick="switchView('create-campaign')" class="px-4 py-2 btn-cta text-xs">Post the first offer</button>
                     ` : ''}
@@ -2405,7 +2419,7 @@
     }
 
     // ==========================================================================
-    // CAMPAIGN DETAILS & APPLICATION
+    // CAMPAIGN DETAILS & DUPLICATE APPLICATION LOCK ("ALREADY APPLIED")
     // ==========================================================================
     function renderDetailsHTML() {
         return `
@@ -2428,6 +2442,22 @@
         if (!campaign) {
             container.innerHTML = `<div class="text-center py-16 text-sec text-xs">Campaign not found.</div>`;
             return;
+        }
+
+        // Check if current creator already applied to this campaign
+        let existingApplication = null;
+        if (window.currentUser?.role === 'creator') {
+            try {
+                const qDup = query(
+                    collection(db, "applications"),
+                    where("campaign_id", "==", campaignId),
+                    where("creator_id", "==", window.currentUser.uid)
+                );
+                const dupSnap = await getDocs(qDup);
+                if (!dupSnap.empty) {
+                    existingApplication = { id: dupSnap.docs[0].id, ...dupSnap.docs[0].data() };
+                }
+            } catch (e) {}
         }
 
         const imgUrl = campaign.image_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500';
@@ -2506,6 +2536,21 @@
                             </div>
                             <button onclick="selectRoleForSignup('creator')" class="w-full sm:w-auto px-6 py-3 btn-cta text-xs">Get Started</button>
                         </div>
+                    ` : campaign.status === 'Completed' ? `
+                        <div class="p-4 card-inner text-xs text-sec text-center font-bold">
+                            This promotion has already been completed.
+                        </div>
+                    ` : existingApplication ? `
+                        <div class="p-5 card-inner flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="space-y-1">
+                                <p class="font-extrabold text-sm text-accent flex items-center space-x-1.5">
+                                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                    <span>Already Applied</span>
+                                </p>
+                                <p class="text-xs text-sec">You already submitted an application for this offer (Status: <strong>${window.escapeHTML(existingApplication.status)}</strong>).</p>
+                            </div>
+                            <button onclick="switchView('dashboard')" class="w-full sm:w-auto px-5 py-2.5 btn-ghost text-xs">View in Activity</button>
+                        </div>
                     ` : `
                         <form onsubmit="submitApplication(event, '${window.escapeHTML(campaign.id)}', '${window.escapeHTML(campaign.title)}', '${window.escapeHTML(campaign.user_id)}', ${Number(campaign.min_followers || 0)})" class="space-y-4">
                             <h3 class="font-extrabold text-base">Apply for this offer</h3>
@@ -2547,10 +2592,25 @@
         }
 
         const btn = document.getElementById('apply-submit-btn');
-        if (btn) { btn.disabled = true; btn.innerText = 'Submitting...'; }
-        const pitch = document.getElementById('apply-pitch').value.trim();
+        if (btn) { btn.disabled = true; btn.innerText = 'Checking application...'; }
 
         try {
+            // Double-check duplicate application on backend before inserting
+            const qDup = query(
+                collection(db, "applications"),
+                where("campaign_id", "==", campaignId),
+                where("creator_id", "==", window.currentUser.uid)
+            );
+            const dupSnap = await getDocs(qDup);
+            if (!dupSnap.empty) {
+                window.showToast('You have already applied to this offer.', 'error');
+                await loadCampaignDetails(campaignId);
+                return;
+            }
+
+            if (btn) btn.innerText = 'Submitting...';
+            const pitch = document.getElementById('apply-pitch').value.trim();
+
             await addDoc(collection(db, "applications"), {
                 campaign_id: campaignId,
                 campaign_title: campaignTitle,
@@ -2567,7 +2627,10 @@
 
             await addDoc(collection(db, "notifications"), {
                 user_id: companyOwnerId,
+                title: 'New Creator Application',
                 message: `${window.currentUser.name} (${window.currentUser.tiktok_username}) applied for "${campaignTitle}".`,
+                detail: `Creator @${window.currentUser.hawme_username || window.currentUser.tiktok_username} (${creatorFollowers.toLocaleString()} followers) applied for "${campaignTitle}". Pitch: ${pitch || 'No pitch notes provided.'}`,
+                campaign_id: campaignId,
                 read: false,
                 created_at: new Date().toISOString()
             });
@@ -2581,7 +2644,7 @@
     };
 
     // ==========================================================================
-    // CREATORS DIRECTORY & PUBLIC CREATOR PROFILE MODAL
+    // CREATORS DIRECTORY & PUBLIC PROFILE MODAL (WITH COMPANY SEND OFFER ACTION)
     // ==========================================================================
     function renderCreatorsDirectoryHTML() {
         return `
@@ -2589,7 +2652,7 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 class="text-2xl sm:text-3xl font-black tracking-tight">Creators Directory</h1>
-                        <p class="text-xs sm:text-sm text-sec mt-1">Discover Ethiopian TikTok creators with audience metrics.</p>
+                        <p class="text-xs sm:text-sm text-sec mt-1">Discover Ethiopian TikTok creators and send direct collaboration offers.</p>
                     </div>
                     <div class="flex items-center card-outer p-1 rounded-2xl">
                         <button onclick="setCreatorsFilter('followers')" id="btn-filter-followers" class="px-4 py-2 rounded-xl text-xs font-extrabold ${window.creatorsFilterMode === 'followers' ? 'btn-cta' : 'text-sec'}">Most Followers</button>
@@ -2629,6 +2692,8 @@
                 return;
             }
 
+            const isCompany = window.currentUser?.role === 'company';
+
             grid.innerHTML = creators.map((c, idx) => {
                 const avatar = c.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.name || 'C')}&backgroundColor=25F4EE`;
                 return `
@@ -2651,9 +2716,12 @@
                             </div>
                             <p class="text-xs text-sec line-clamp-2 leading-relaxed">${window.escapeHTML(c.bio || 'No bio specified.')}</p>
                         </div>
-                        <div class="pt-5 border-t flex items-center justify-between mt-4" style="border-color: var(--border-normal);">
-                            <span class="text-xs text-sec tabular-nums">Completed: <strong class="text-emerald-400">${Number(c.completed_promotions || 0)}</strong></span>
-                            <button onclick="openCreatorProfileModal('${c.uid}')" class="px-4 py-2 btn-ghost text-xs">View Profile</button>
+                        <div class="pt-5 border-t flex items-center justify-between gap-2 mt-4" style="border-color: var(--border-normal);">
+                            <span class="text-xs text-sec tabular-nums">Done: <strong class="text-emerald-400">${Number(c.completed_promotions || 0)}</strong></span>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="openCreatorProfileModal('${c.uid}')" class="px-3.5 py-2 btn-ghost text-xs">Profile</button>
+                                ${isCompany ? `<button onclick="openConnectPitchModal('${c.uid}', '${window.escapeHTML(c.name)}')" class="px-3.5 py-2 btn-cta text-xs">Send Offer</button>` : ''}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2708,7 +2776,7 @@
                     <div class="pt-3 border-t" style="border-color: var(--border-normal);">
                         <button onclick="openConnectPitchModal('${creatorUid}', '${window.escapeHTML(c.name)}')" class="w-full py-3.5 btn-cta text-sm flex items-center justify-center space-x-2">
                             <i data-lucide="send" class="w-4 h-4"></i>
-                            <span>Connect with Creator</span>
+                            <span>Send Collaboration Offer</span>
                         </button>
                     </div>
                 ` : ''}
@@ -2760,7 +2828,9 @@
 
             await addDoc(collection(db, "notifications"), {
                 user_id: creatorId,
+                title: 'New Direct Collaboration Offer',
                 message: `${window.currentUser.name} offered you a direct deal of ETB ${price.toLocaleString()}.`,
+                detail: `Company: ${window.currentUser.name}\nBudget: ETB ${price.toLocaleString()}\nRequirements: ${description}${targetViews ? `\nTarget Views: ${targetViews.toLocaleString()}` : ''}${targetLikes ? `\nTarget Likes: ${targetLikes.toLocaleString()}` : ''}`,
                 read: false,
                 deal_id: docRef.id,
                 created_at: new Date().toISOString()
@@ -2953,61 +3023,152 @@
     };
 
     // ==========================================================================
-    // COMPANY & CREATOR DASHBOARDS (ACTIVITY VIEWS)
+    // COMPANY & CREATOR ACTIVITY PAGES (WITH DETAILED NOTIFICATIONS TAB)
     // ==========================================================================
+    window.setCompanyActivityTab = function(tab) {
+        window.companyActivityTab = tab;
+        renderView();
+    };
+
+    window.setCreatorActivityTab = function(tab) {
+        window.creatorActivityTab = tab;
+        renderView();
+    };
+
     function renderCompanyDashboardHTML() {
+        const isNotifs = window.companyActivityTab === 'notifications';
         return `
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <h1 class="text-2xl sm:text-3xl font-black tracking-tight">Company Activity</h1>
-                        <p class="text-xs text-sec mt-1">Manage active listings, direct deals, and Telebirr escrow.</p>
+                        <p class="text-xs text-sec mt-1">Manage offers, direct deals, and detailed notifications.</p>
                     </div>
                     <div class="flex items-center space-x-2.5">
-                        <button onclick="openVerificationModal()" class="px-4 py-2.5 btn-ghost text-xs">Get Verified</button>
+                        <button onclick="switchView('leaderboard')" class="px-4 py-2.5 btn-ghost text-xs">Leaderboard</button>
                         <button onclick="switchView('create-campaign')" class="px-5 py-2.5 btn-cta text-xs">+ Post New Offer</button>
                     </div>
                 </div>
 
-                <div class="card-outer overflow-hidden">
-                    <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
-                        <h3 class="font-extrabold text-sm">Direct Deals with Creators</h3>
-                    </div>
-                    <div id="company-direct-deals-list" class="divide-y" style="border-color: var(--border-normal);">
-                        <div class="px-6 py-8 text-center text-xs text-sec">Loading deals...</div>
-                    </div>
+                <div class="flex border-b space-x-4" style="border-color: var(--border-normal);">
+                    <button onclick="setCompanyActivityTab('offers')" class="py-2.5 text-xs font-extrabold border-b-2 transition-colors ${!isNotifs ? 'border-accent text-accent' : 'border-transparent text-sec'}">Offers & Deals</button>
+                    <button onclick="setCompanyActivityTab('notifications')" class="py-2.5 text-xs font-extrabold border-b-2 transition-colors ${isNotifs ? 'border-accent text-accent' : 'border-transparent text-sec'}">Notifications</button>
                 </div>
 
-                <div class="card-outer overflow-hidden">
-                    <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
-                        <h3 class="font-extrabold text-sm">Your Active Public Offers</h3>
+                ${isNotifs ? `
+                    <div id="activity-notifications-feed" class="space-y-3 max-w-3xl">
+                        <div class="card-outer p-8 text-center text-xs text-sec">Loading notifications...</div>
                     </div>
-                    <div id="company-campaigns-list" class="divide-y" style="border-color: var(--border-normal);">
-                        <div class="px-6 py-8 text-center text-xs text-sec">Loading offers...</div>
+                ` : `
+                    <div class="card-outer overflow-hidden">
+                        <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
+                            <h3 class="font-extrabold text-sm">Direct Deals with Creators</h3>
+                        </div>
+                        <div id="company-direct-deals-list" class="divide-y" style="border-color: var(--border-normal);">
+                            <div class="px-6 py-8 text-center text-xs text-sec">Loading deals...</div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="card-outer overflow-hidden">
-                    <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
-                        <h3 class="font-extrabold text-sm">Applications Received</h3>
+                    <div class="card-outer overflow-hidden">
+                        <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
+                            <h3 class="font-extrabold text-sm">Your Public Offers</h3>
+                        </div>
+                        <div id="company-campaigns-list" class="divide-y" style="border-color: var(--border-normal);">
+                            <div class="px-6 py-8 text-center text-xs text-sec">Loading offers...</div>
+                        </div>
                     </div>
-                    <div id="company-applications-list" class="divide-y" style="border-color: var(--border-normal);">
-                        <div class="px-6 py-8 text-center text-xs text-sec">Loading applications...</div>
+
+                    <div class="card-outer overflow-hidden">
+                        <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
+                            <h3 class="font-extrabold text-sm">Applications Received</h3>
+                        </div>
+                        <div id="company-applications-list" class="divide-y" style="border-color: var(--border-normal);">
+                            <div class="px-6 py-8 text-center text-xs text-sec">Loading applications...</div>
+                        </div>
                     </div>
-                </div>
+                `}
             </div>
         `;
     }
 
+    async function loadActivityNotificationsIntoFeed() {
+        const feed = document.getElementById('activity-notifications-feed');
+        if (!feed || !window.currentUser) return;
+        try {
+            const q = query(collection(db, "notifications"), where("user_id", "==", window.currentUser.uid));
+            const snap = await getDocs(q);
+            if (snap.empty) {
+                feed.innerHTML = `<div class="card-outer p-8 text-center text-xs text-sec">No notifications yet.</div>`;
+                return;
+            }
+            const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            window.cachedNotifications = items;
+
+            feed.innerHTML = items.map(n => `
+                <div onclick="openNotificationDetail('${n.id}')" class="card-outer card-outer-hover p-5 cursor-pointer flex items-start justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                            ${!n.read ? `<span class="w-2 h-2 rounded-full bg-accent shrink-0"></span>` : ''}
+                            <h4 class="font-extrabold text-sm">${window.escapeHTML(n.title || 'Activity Update')}</h4>
+                        </div>
+                        <p class="text-xs text-sec leading-relaxed">${window.escapeHTML(n.message || '')}</p>
+                        <p class="text-[11px] text-mut pt-1">${n.created_at ? new Date(n.created_at).toLocaleString() : ''}</p>
+                    </div>
+                    <span class="text-xs font-bold text-accent shrink-0">Details →</span>
+                </div>
+            `).join('');
+
+            for (let d of snap.docs.filter(x => !x.data().read)) {
+                await updateDoc(doc(db, "notifications", d.id), { read: true });
+            }
+            document.getElementById('unread-dot')?.classList.add('hidden');
+        } catch (e) {
+            feed.innerHTML = `<div class="card-outer p-8 text-center text-xs text-sec">Unable to load notifications.</div>`;
+        }
+    }
+
+    window.openNotificationDetail = function(notifId) {
+        const item = window.cachedNotifications.find(n => n.id === notifId);
+        if (!item) return;
+        const modal = document.getElementById('notification-detail-modal');
+        const body = document.getElementById('notification-detail-body');
+        modal.classList.remove('hidden');
+
+        body.innerHTML = `
+            <div class="flex items-center justify-between pb-2 border-b" style="border-color: var(--border-normal);">
+                <h3 class="font-black text-base">${window.escapeHTML(item.title || 'Notification Details')}</h3>
+                <button onclick="closeNotificationDetailModal()" class="text-sec hover:opacity-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-xs text-mut">${item.created_at ? new Date(item.created_at).toLocaleString() : ''}</p>
+                <div class="p-4 card-inner text-xs leading-relaxed whitespace-pre-line">${window.escapeHTML(item.detail || item.message || '')}</div>
+            </div>
+            <div class="flex gap-3 pt-1">
+                ${item.campaign_id ? `<button onclick="closeNotificationDetailModal(); closeNotificationsModal(); switchView('details', '${window.escapeHTML(item.campaign_id)}');" class="flex-1 py-3 btn-cta text-xs">Open Campaign</button>` : ''}
+                <button onclick="closeNotificationDetailModal()" class="flex-1 py-3 btn-ghost text-xs">Close</button>
+            </div>
+        `;
+        lucide.createIcons();
+    };
+
+    window.closeNotificationDetailModal = function() {
+        document.getElementById('notification-detail-modal').classList.add('hidden');
+    };
+
     async function loadCompanyDashboardData() {
         if (!window.currentUser) return;
+        if (window.companyActivityTab === 'notifications') {
+            await loadActivityNotificationsIntoFeed();
+            return;
+        }
 
         const dealsList = document.getElementById('company-direct-deals-list');
         try {
             const qD = query(collection(db, "direct_deals"), where("company_id", "==", window.currentUser.uid));
             const dealSnap = await getDocs(qD);
             if (dealSnap.empty) {
-                dealsList.innerHTML = `<div class="px-6 py-8 text-center text-xs text-sec">No direct deals yet. Browse Creators Directory to pitch directly.</div>`;
+                dealsList.innerHTML = `<div class="px-6 py-8 text-center text-xs text-sec">No direct deals yet. Open Leaderboard or Creators to send offers.</div>`;
             } else {
                 dealsList.innerHTML = dealSnap.docs.map(docSnap => {
                     const d = docSnap.data();
@@ -3046,16 +3207,23 @@
             } else {
                 campList.innerHTML = campSnap.docs.map(docSnap => {
                     const c = docSnap.data();
+                    const isDone = c.status === 'Completed';
                     return `
-                        <div class="px-6 py-4 flex items-center justify-between">
+                        <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div class="flex items-center space-x-3.5">
                                 <img src="${window.escapeHTML(c.image_url)}" class="w-12 h-12 rounded-xl object-cover">
                                 <div>
-                                    <h4 class="font-extrabold text-sm">${window.escapeHTML(c.title)}</h4>
+                                    <div class="flex items-center space-x-2">
+                                        <h4 class="font-extrabold text-sm">${window.escapeHTML(c.title)}</h4>
+                                        ${isDone ? `<span class="px-2 py-0.5 card-inner text-[11px] font-bold text-emerald-400">Completed</span>` : ''}
+                                    </div>
                                     <p class="text-xs text-sec tabular-nums">${window.escapeHTML(c.type)} · ${window.escapeHTML(c.reward)} · Min ${Number(c.min_followers || 0).toLocaleString()} followers</p>
                                 </div>
                             </div>
-                            <button onclick="switchView('details', '${docSnap.id}')" class="text-xs text-accent hover:underline font-bold">View</button>
+                            <div class="flex items-center space-x-2.5">
+                                <button onclick="switchView('details', '${docSnap.id}')" class="px-3 py-1.5 btn-ghost text-xs">View</button>
+                                ${!isDone ? `<button onclick="markCampaignCompleted('${docSnap.id}')" class="px-3 py-1.5 btn-cta text-xs">Mark Completed</button>` : ''}
+                            </div>
                         </div>
                     `;
                 }).join('');
@@ -3076,6 +3244,7 @@
                 appList.innerHTML = sortedApps.map(a => {
                     const isAccepted = a.status === 'Accepted';
                     const isRejected = a.status === 'Rejected';
+                    const isCompleted = a.status === 'Completed';
                     return `
                         <div class="px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div class="space-y-1">
@@ -3086,14 +3255,18 @@
                                 </div>
                                 <p class="text-xs text-sec">Offer: <strong>${window.escapeHTML(a.campaign_title)}</strong></p>
                                 ${a.pitch ? `<p class="text-xs text-sec card-inner p-2.5 mt-1">${window.escapeHTML(a.pitch)}</p>` : ''}
+                                ${a.video_url ? `<p class="text-xs pt-1">Submitted Video: <a href="${window.escapeHTML(a.video_url)}" target="_blank" class="text-accent font-bold underline">${window.escapeHTML(a.video_url)}</a></p>` : ''}
                             </div>
-                            <div class="flex items-center space-x-2.5">
-                                <span class="px-3 py-1 card-inner text-xs font-extrabold ${isAccepted ? 'text-emerald-400' : (isRejected ? 'text-red-400' : '')}">
+                            <div class="flex items-center space-x-2.5 flex-wrap">
+                                <span class="px-3 py-1 card-inner text-xs font-extrabold ${isAccepted || isCompleted ? 'text-emerald-400' : (isRejected ? 'text-red-400' : '')}">
                                     ${window.escapeHTML(a.status)}
                                 </span>
-                                ${!isAccepted && !isRejected ? `
-                                    <button onclick="acceptCreatorApplication('${a.id}', '${window.escapeHTML(a.creator_id)}', '${window.escapeHTML(a.campaign_title)}')" class="px-4 py-2 btn-cta text-xs">Accept</button>
+                                ${!isAccepted && !isRejected && !isCompleted ? `
+                                    <button onclick="acceptCreatorApplication('${a.id}', '${window.escapeHTML(a.creator_id)}', '${window.escapeHTML(a.campaign_title)}', '${window.escapeHTML(a.campaign_id)}')" class="px-4 py-2 btn-cta text-xs">Accept</button>
                                     <button onclick="rejectCreatorApplication('${a.id}')" class="px-3 py-2 btn-ghost text-xs">Reject</button>
+                                ` : ''}
+                                ${a.video_url && !isCompleted ? `
+                                    <button onclick="completeCampaignApplication('${a.id}', '${window.escapeHTML(a.campaign_id)}', '${window.escapeHTML(a.creator_id)}', '${window.escapeHTML(a.campaign_title)}')" class="px-4 py-2 btn-cta text-xs">Approve & Complete</button>
                                 ` : ''}
                             </div>
                         </div>
@@ -3102,6 +3275,52 @@
             }
         } catch (e) {}
     }
+
+    // Marks a campaign Completed so it is automatically removed from public marketplace feeds
+    window.markCampaignCompleted = async function(campaignId) {
+        try {
+            await updateDoc(doc(db, "campaigns", campaignId), {
+                status: 'Completed',
+                completed_at: new Date().toISOString()
+            });
+            window.showToast('Promotion marked Completed and removed from live marketplace.', 'success');
+            loadCompanyDashboardData();
+        } catch (err) { window.showToast(err.message, 'error'); }
+    };
+
+    // Completes an application AND marks the promotion Completed (removing it from marketplace)
+    window.completeCampaignApplication = async function(applicationId, campaignId, creatorId, campaignTitle) {
+        try {
+            await updateDoc(doc(db, "applications", applicationId), {
+                status: 'Completed',
+                completed_at: new Date().toISOString()
+            });
+            if (campaignId) {
+                await updateDoc(doc(db, "campaigns", campaignId), {
+                    status: 'Completed',
+                    completed_at: new Date().toISOString()
+                });
+            }
+            const creatorRef = doc(db, "users", creatorId);
+            const creatorSnap = await getDoc(creatorRef);
+            if (creatorSnap.exists()) {
+                await updateDoc(creatorRef, {
+                    completed_promotions: Number(creatorSnap.data().completed_promotions || 0) + 1
+                });
+            }
+            await addDoc(collection(db, "notifications"), {
+                user_id: creatorId,
+                title: 'Promotion Completed',
+                message: `Your collaboration for "${campaignTitle}" has been approved and completed.`,
+                detail: `Campaign: ${campaignTitle}\nStatus: Completed\nYour completed promotion count has been updated on the HAWME Leaderboard.`,
+                campaign_id: campaignId,
+                read: false,
+                created_at: new Date().toISOString()
+            });
+            window.showToast('Promotion completed and removed from public listings!', 'success');
+            loadCompanyDashboardData();
+        } catch (err) { window.showToast(err.message, 'error'); }
+    };
 
     window.rejectCreatorApplication = async function(applicationId) {
         try {
@@ -3144,7 +3363,9 @@
 
             await addDoc(collection(db, "notifications"), {
                 user_id: creatorId,
-                message: `Payment of ETB ${amount.toLocaleString()} was deposited to HAWME Telebirr Escrow! Request Bank Withdrawal in your Activity tab.`,
+                title: 'Escrow Payment Deposited',
+                message: `Payment of ETB ${amount.toLocaleString()} was deposited to HAWME Telebirr Escrow!`,
+                detail: `Amount: ETB ${amount.toLocaleString()}\nEscrow Account: 0996350347 (Hanif)\nNext Step: Open your Creator Activity tab and click "Request Bank Withdrawal" to enter your bank or Telebirr account.`,
                 read: false,
                 deal_id: dealId,
                 created_at: new Date().toISOString()
@@ -3156,12 +3377,15 @@
         } catch (err) { window.showToast(err.message, 'error'); }
     };
 
-    window.acceptCreatorApplication = async function(applicationId, creatorUserId, campaignTitle) {
+    window.acceptCreatorApplication = async function(applicationId, creatorUserId, campaignTitle, campaignId = '') {
         try {
             await updateDoc(doc(db, "applications", applicationId), { status: 'Accepted' });
             await addDoc(collection(db, "notifications"), {
                 user_id: creatorUserId,
-                message: `Your application for "${campaignTitle}" was ACCEPTED. You may produce your video!`,
+                title: 'Application Accepted',
+                message: `Your application for "${campaignTitle}" was ACCEPTED. Submit your TikTok video in Activity.`,
+                detail: `Offer: ${campaignTitle}\nStatus: Accepted\nNext Step: Produce your TikTok video according to the campaign guidelines and submit the video link in your Creator Activity tab.`,
+                campaign_id: campaignId,
                 read: false,
                 created_at: new Date().toISOString()
             });
@@ -3171,6 +3395,7 @@
     };
 
     function renderCreatorDashboardHTML() {
+        const isNotifs = window.creatorActivityTab === 'notifications';
         return `
             <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -3199,23 +3424,34 @@
                     </div>
                 </div>
 
-                <div class="card-outer overflow-hidden">
-                    <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
-                        <h3 class="font-extrabold text-sm">Collaborations & Payout Progression</h3>
-                    </div>
-                    <div id="creator-in-progress-deals" class="divide-y" style="border-color: var(--border-normal);">
-                        <div class="px-6 py-6 text-center text-xs text-sec">Loading deals...</div>
-                    </div>
+                <div class="flex border-b space-x-4" style="border-color: var(--border-normal);">
+                    <button onclick="setCreatorActivityTab('collaborations')" class="py-2.5 text-xs font-extrabold border-b-2 transition-colors ${!isNotifs ? 'border-accent text-accent' : 'border-transparent text-sec'}">Collaborations & Applications</button>
+                    <button onclick="setCreatorActivityTab('notifications')" class="py-2.5 text-xs font-extrabold border-b-2 transition-colors ${isNotifs ? 'border-accent text-accent' : 'border-transparent text-sec'}">Notifications</button>
                 </div>
 
-                <div class="card-outer overflow-hidden">
-                    <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
-                        <h3 class="font-extrabold text-sm">Campaign Applications</h3>
+                ${isNotifs ? `
+                    <div id="activity-notifications-feed" class="space-y-3">
+                        <div class="card-outer p-8 text-center text-xs text-sec">Loading notifications...</div>
                     </div>
-                    <div id="creator-submissions-list" class="divide-y" style="border-color: var(--border-normal);">
-                        <div class="px-6 py-6 text-center text-xs text-sec">Loading applications...</div>
+                ` : `
+                    <div class="card-outer overflow-hidden">
+                        <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
+                            <h3 class="font-extrabold text-sm">Direct Deals & Payout Progression</h3>
+                        </div>
+                        <div id="creator-in-progress-deals" class="divide-y" style="border-color: var(--border-normal);">
+                            <div class="px-6 py-6 text-center text-xs text-sec">Loading deals...</div>
+                        </div>
                     </div>
-                </div>
+
+                    <div class="card-outer overflow-hidden">
+                        <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
+                            <h3 class="font-extrabold text-sm">Campaign Applications</h3>
+                        </div>
+                        <div id="creator-submissions-list" class="divide-y" style="border-color: var(--border-normal);">
+                            <div class="px-6 py-6 text-center text-xs text-sec">Loading applications...</div>
+                        </div>
+                    </div>
+                `}
             </div>
         `;
     }
@@ -3223,15 +3459,22 @@
     async function loadCreatorDashboardData() {
         if (!window.currentUser) return;
 
-        const dealsList = document.getElementById('creator-in-progress-deals');
         try {
             const qD = query(collection(db, "direct_deals"), where("creator_id", "==", window.currentUser.uid));
             const dealSnap = await getDocs(qD);
             const deals = dealSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-            document.getElementById('creator-stat-deals').innerText = deals.filter(d => d.status === 'In_Progress' || d.status === 'Proposed').length;
-            document.getElementById('creator-stat-completed').innerText = deals.filter(d => d.status === 'Escrow_Deposited' || d.status === 'Withdrawn').length;
+            const statDeals = document.getElementById('creator-stat-deals');
+            const statDone = document.getElementById('creator-stat-completed');
+            if (statDeals) statDeals.innerText = deals.filter(d => d.status === 'In_Progress' || d.status === 'Proposed').length;
+            if (statDone) statDone.innerText = Number(window.currentUser.completed_promotions || deals.filter(d => d.status === 'Escrow_Deposited' || d.status === 'Withdrawn').length);
 
+            if (window.creatorActivityTab === 'notifications') {
+                await loadActivityNotificationsIntoFeed();
+                return;
+            }
+
+            const dealsList = document.getElementById('creator-in-progress-deals');
             if (deals.length === 0) {
                 dealsList.innerHTML = `<div class="px-6 py-8 text-center text-xs text-sec">No direct collaborations assigned yet.</div>`;
             } else {
@@ -3273,6 +3516,7 @@
         } catch(e) {}
 
         const appList = document.getElementById('creator-submissions-list');
+        if (!appList) return;
         try {
             const qA = query(collection(db, "applications"), where("creator_id", "==", window.currentUser.uid));
             const snap = await getDocs(qA);
@@ -3284,18 +3528,51 @@
             }
 
             appList.innerHTML = activeApps.map(app => `
-                <div class="px-6 py-4 flex items-center justify-between">
+                <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <h4 class="font-extrabold text-sm">${window.escapeHTML(app.campaign_title || 'Application')}</h4>
                         <p class="text-xs text-sec">${window.escapeHTML(app.pitch || 'No pitch notes')}</p>
+                        ${app.video_url ? `<a href="${window.escapeHTML(app.video_url)}" target="_blank" class="text-xs text-accent font-bold underline">${window.escapeHTML(app.video_url)}</a>` : ''}
                     </div>
-                    <span class="px-3 py-1 card-inner text-xs font-extrabold ${app.status === 'Accepted' ? 'text-emerald-400' : ''}">
-                        ${window.escapeHTML(app.status)}
-                    </span>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-3 py-1 card-inner text-xs font-extrabold ${app.status === 'Accepted' || app.status === 'Completed' ? 'text-emerald-400' : ''}">
+                            ${window.escapeHTML(app.status)}
+                        </span>
+                        ${app.status === 'Accepted' && !app.video_url ? `
+                            <input type="url" id="app-video-${app.id}" placeholder="https://tiktok.com/@..." class="input-field px-3 py-1.5 text-xs w-44">
+                            <button onclick="submitApplicationVideo('${app.id}', '${window.escapeHTML(app.company_owner_id)}', '${window.escapeHTML(app.campaign_title)}')" class="px-3 py-1.5 btn-cta text-xs">Submit Video</button>
+                        ` : ''}
+                    </div>
                 </div>
             `).join('');
         } catch(e) {}
     }
+
+    window.submitApplicationVideo = async function(appId, companyOwnerId, campaignTitle) {
+        const videoUrl = document.getElementById(`app-video-${appId}`)?.value.trim() || '';
+        if (!videoUrl || !videoUrl.includes('tiktok.com')) {
+            window.showToast('Please enter a valid TikTok video URL', 'error');
+            return;
+        }
+        try {
+            await updateDoc(doc(db, "applications", appId), {
+                status: 'Video Submitted',
+                video_url: videoUrl
+            });
+            if (companyOwnerId) {
+                await addDoc(collection(db, "notifications"), {
+                    user_id: companyOwnerId,
+                    title: 'Campaign Video Submitted',
+                    message: `${window.currentUser.name} submitted a video for "${campaignTitle}".`,
+                    detail: `Creator: ${window.currentUser.name} (${window.currentUser.tiktok_username})\nCampaign: ${campaignTitle}\nSubmitted Video URL: ${videoUrl}`,
+                    read: false,
+                    created_at: new Date().toISOString()
+                });
+            }
+            window.showToast('Video submitted for company review!', 'success');
+            loadCreatorDashboardData();
+        } catch (err) { window.showToast(err.message, 'error'); }
+    };
 
     window.approveDirectDeal = async function(dealId) {
         try {
@@ -3363,7 +3640,7 @@
     };
 
     // ==========================================================================
-    // LEADERBOARD WITH PODIUM
+    // LEADERBOARD (WITH COMPANY SEND OFFER ACTION ON EVERY CREATOR)
     // ==========================================================================
     function renderLeaderboardHTML() {
         const isCreators = window.leaderboardTab === 'creators';
@@ -3371,7 +3648,7 @@
             <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
                 <div class="text-center space-y-1.5">
                     <h1 class="text-2xl sm:text-4xl font-black tracking-tight">HAWME Leaderboard</h1>
-                    <p class="text-xs sm:text-sm text-sec">Celebrating the creators making an impact.</p>
+                    <p class="text-xs sm:text-sm text-sec">Top-ranked creators and active marketplace offers.</p>
                 </div>
 
                 <div class="flex justify-center">
@@ -3417,45 +3694,49 @@
 
                 const top3 = list.slice(0, 3);
                 const rest = list.slice(3);
+                const isCompany = window.currentUser?.role === 'company';
                 const getAvatar = c => c.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.name || 'C')}&backgroundColor=25F4EE`;
 
                 area.innerHTML = `
                     <div class="grid grid-cols-3 items-end gap-2.5 sm:gap-4 pt-4 pb-2 tabular-nums">
                         ${top3[1] ? `
-                            <div onclick="openCreatorProfileModal('${top3[1].uid}')" class="flex flex-col items-center text-center cursor-pointer">
-                                <img src="${window.escapeHTML(getAvatar(top3[1]))}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-zinc-400">
-                                <p class="font-extrabold text-xs mt-2 truncate max-w-full">${window.escapeHTML(top3[1].name)}</p>
-                                <div class="w-full card-outer p-3 sm:p-4 mt-2 min-h-[100px] flex flex-col justify-center items-center">
+                            <div class="flex flex-col items-center text-center">
+                                <img onclick="openCreatorProfileModal('${top3[1].uid}')" src="${window.escapeHTML(getAvatar(top3[1]))}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-zinc-400 cursor-pointer">
+                                <p onclick="openCreatorProfileModal('${top3[1].uid}')" class="font-extrabold text-xs mt-2 truncate max-w-full cursor-pointer">${window.escapeHTML(top3[1].name)}</p>
+                                <div class="w-full card-outer p-3 sm:p-4 mt-2 min-h-[108px] flex flex-col justify-center items-center space-y-1">
                                     <span class="text-xs font-black text-sec">#2</span>
-                                    <p class="font-black text-xs sm:text-sm mt-0.5">${top3[1].score.toLocaleString()} pts</p>
+                                    <p class="font-black text-xs sm:text-sm">${top3[1].score.toLocaleString()} pts</p>
                                     <p class="text-[11px] text-sec">${Number(top3[1].followers || 0).toLocaleString()} followers</p>
+                                    ${isCompany ? `<button onclick="openConnectPitchModal('${top3[1].uid}', '${window.escapeHTML(top3[1].name)}')" class="mt-1 px-2.5 py-1 btn-cta text-[11px]">Send Offer</button>` : ''}
                                 </div>
                             </div>
                         ` : `<div></div>`}
 
                         ${top3[0] ? `
-                            <div onclick="openCreatorProfileModal('${top3[0].uid}')" class="flex flex-col items-center text-center cursor-pointer">
-                                <img src="${window.escapeHTML(getAvatar(top3[0]))}" class="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-accent">
-                                <div class="flex items-center space-x-1 mt-2 max-w-full">
+                            <div class="flex flex-col items-center text-center">
+                                <img onclick="openCreatorProfileModal('${top3[0].uid}')" src="${window.escapeHTML(getAvatar(top3[0]))}" class="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-accent cursor-pointer">
+                                <div onclick="openCreatorProfileModal('${top3[0].uid}')" class="flex items-center space-x-1 mt-2 max-w-full cursor-pointer">
                                     <p class="font-black text-xs sm:text-sm truncate">${window.escapeHTML(top3[0].name)}</p>
                                     ${window.verifiedBadgeSVG(top3[0].is_verified)}
                                 </div>
-                                <div class="w-full podium-1 rounded-3xl p-3 sm:p-5 mt-2 min-h-[128px] flex flex-col justify-center items-center">
+                                <div class="w-full podium-1 rounded-3xl p-3 sm:p-5 mt-2 min-h-[136px] flex flex-col justify-center items-center space-y-1">
                                     <span class="text-xs font-black text-accent">#1</span>
-                                    <p class="font-black text-sm sm:text-base text-accent mt-1">${top3[0].score.toLocaleString()} pts</p>
+                                    <p class="font-black text-sm sm:text-base text-accent">${top3[0].score.toLocaleString()} pts</p>
                                     <p class="text-[11px] text-sec">${Number(top3[0].followers || 0).toLocaleString()} followers</p>
+                                    ${isCompany ? `<button onclick="openConnectPitchModal('${top3[0].uid}', '${window.escapeHTML(top3[0].name)}')" class="mt-1 px-3 py-1 btn-cta text-[11px]">Send Offer</button>` : ''}
                                 </div>
                             </div>
                         ` : `<div></div>`}
 
                         ${top3[2] ? `
-                            <div onclick="openCreatorProfileModal('${top3[2].uid}')" class="flex flex-col items-center text-center cursor-pointer">
-                                <img src="${window.escapeHTML(getAvatar(top3[2]))}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-amber-700">
-                                <p class="font-extrabold text-xs mt-2 truncate max-w-full">${window.escapeHTML(top3[2].name)}</p>
-                                <div class="w-full card-outer p-3 sm:p-4 mt-2 min-h-[88px] flex flex-col justify-center items-center">
+                            <div class="flex flex-col items-center text-center">
+                                <img onclick="openCreatorProfileModal('${top3[2].uid}')" src="${window.escapeHTML(getAvatar(top3[2]))}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-amber-700 cursor-pointer">
+                                <p onclick="openCreatorProfileModal('${top3[2].uid}')" class="font-extrabold text-xs mt-2 truncate max-w-full cursor-pointer">${window.escapeHTML(top3[2].name)}</p>
+                                <div class="w-full card-outer p-3 sm:p-4 mt-2 min-h-[96px] flex flex-col justify-center items-center space-y-1">
                                     <span class="text-xs font-black text-sec">#3</span>
-                                    <p class="font-black text-xs sm:text-sm mt-0.5">${top3[2].score.toLocaleString()} pts</p>
+                                    <p class="font-black text-xs sm:text-sm">${top3[2].score.toLocaleString()} pts</p>
                                     <p class="text-[11px] text-sec">${Number(top3[2].followers || 0).toLocaleString()} followers</p>
+                                    ${isCompany ? `<button onclick="openConnectPitchModal('${top3[2].uid}', '${window.escapeHTML(top3[2].name)}')" class="mt-1 px-2.5 py-1 btn-cta text-[11px]">Send Offer</button>` : ''}
                                 </div>
                             </div>
                         ` : `<div></div>`}
@@ -3464,21 +3745,24 @@
                     ${rest.length ? `
                         <div class="card-outer overflow-hidden divide-y tabular-nums" style="border-color: var(--border-normal);">
                             ${rest.map((c, idx) => `
-                                <div onclick="openCreatorProfileModal('${c.uid}')" class="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-white/5">
-                                    <div class="flex items-center space-x-3.5">
-                                        <span class="font-black text-xs w-6 text-mut">#${idx + 4}</span>
-                                        <img src="${window.escapeHTML(getAvatar(c))}" class="w-10 h-10 rounded-full object-cover">
-                                        <div>
+                                <div class="px-5 py-4 flex items-center justify-between gap-3 hover:bg-white/5">
+                                    <div onclick="openCreatorProfileModal('${c.uid}')" class="flex items-center space-x-3.5 cursor-pointer min-w-0">
+                                        <span class="font-black text-xs w-6 text-mut shrink-0">#${idx + 4}</span>
+                                        <img src="${window.escapeHTML(getAvatar(c))}" class="w-10 h-10 rounded-full object-cover shrink-0">
+                                        <div class="min-w-0">
                                             <div class="flex items-center space-x-1">
-                                                <h4 class="font-extrabold text-sm">${window.escapeHTML(c.name)}</h4>
+                                                <h4 class="font-extrabold text-sm truncate">${window.escapeHTML(c.name)}</h4>
                                                 ${window.verifiedBadgeSVG(c.is_verified)}
                                             </div>
-                                            <p class="text-xs text-accent font-bold">@${window.escapeHTML(c.hawme_username || c.tiktok_username?.replace('@', ''))} · ${Number(c.followers || 0).toLocaleString()} followers</p>
+                                            <p class="text-xs text-accent font-bold truncate">@${window.escapeHTML(c.hawme_username || c.tiktok_username?.replace('@', ''))} · ${Number(c.followers || 0).toLocaleString()} followers</p>
                                         </div>
                                     </div>
-                                    <div class="text-right">
-                                        <p class="font-black text-sm text-accent">${c.score.toLocaleString()} pts</p>
-                                        <p class="text-xs text-sec">${Number(c.completed_promotions || 0)} done</p>
+                                    <div class="flex items-center space-x-3 shrink-0">
+                                        <div class="text-right">
+                                            <p class="font-black text-sm text-accent">${c.score.toLocaleString()} pts</p>
+                                            <p class="text-xs text-sec">${Number(c.completed_promotions || 0)} done</p>
+                                        </div>
+                                        ${isCompany ? `<button onclick="openConnectPitchModal('${c.uid}', '${window.escapeHTML(c.name)}')" class="px-3.5 py-2 btn-cta text-xs">Send Offer</button>` : ''}
                                     </div>
                                 </div>
                             `).join('')}
@@ -3490,7 +3774,7 @@
         } else {
             const camps = await getCampaignsFromFirebase();
             if (camps.length === 0) {
-                area.innerHTML = `<div class="text-center py-12 text-sec text-xs">No company offers posted yet.</div>`;
+                area.innerHTML = `<div class="text-center py-12 text-sec text-xs">No active offers posted yet.</div>`;
                 return;
             }
             area.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-6">${camps.map(c => renderCampaignCardHTML(c)).join('')}</div>`;
@@ -3499,7 +3783,7 @@
     }
 
     // ==========================================================================
-    // NOTIFICATIONS
+    // NOTIFICATIONS (MODAL + FULL DETAIL VIEW)
     // ==========================================================================
     async function loadUnreadNotifications() {
         if (!window.currentUser) return;
@@ -3527,10 +3811,15 @@
             if (snap.empty) { body.innerHTML = `<p class="text-xs text-sec text-center py-6">No notifications yet.</p>`; return; }
             const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            window.cachedNotifications = items;
 
             body.innerHTML = items.map(n => `
-                <div onclick="closeNotificationsModal(); navigateToDashboard();" class="p-3.5 card-inner cursor-pointer border-l-2 ${n.read ? 'opacity-75' : ''}" style="${n.read ? '' : 'border-left-color: var(--accent-primary);'}">
-                    <p class="text-xs leading-relaxed">${window.escapeHTML(n.message || 'Notification')}</p>
+                <div onclick="openNotificationDetail('${n.id}')" class="p-3.5 card-inner cursor-pointer border-l-2 ${n.read ? 'opacity-75' : ''}" style="${n.read ? '' : 'border-left-color: var(--accent-primary);'}">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs font-extrabold">${window.escapeHTML(n.title || 'Update')}</p>
+                        <span class="text-[11px] font-bold text-accent">Details →</span>
+                    </div>
+                    <p class="text-xs text-sec leading-relaxed mt-0.5">${window.escapeHTML(n.message || 'Notification')}</p>
                     <p class="text-[11px] text-mut mt-1">${n.created_at ? new Date(n.created_at).toLocaleString() : ''}</p>
                 </div>
             `).join('');
