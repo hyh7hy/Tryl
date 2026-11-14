@@ -141,6 +141,28 @@
         .text-sec { color: var(--text-secondary); }
         .text-mut { color: var(--text-muted); }
 
+        /* Payment status badges */
+        .pay-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 9px;
+            border-radius: 99px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+        .pay-badge-dot { width: 5px; height: 5px; border-radius: 99px; }
+        .pay-verified { background: rgba(16, 185, 129, 0.14); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.35); }
+        .pay-verified .pay-badge-dot { background: #10B981; }
+        .pay-review { background: rgba(234, 179, 8, 0.14); color: #FACC15; border: 1px solid rgba(234, 179, 8, 0.35); }
+        .pay-review .pay-badge-dot { background: #EAB308; }
+        .pay-pending { background: rgba(113, 113, 122, 0.16); color: #A1A1AA; border: 1px solid rgba(113, 113, 122, 0.35); }
+        .pay-pending .pay-badge-dot { background: #A1A1AA; }
+        .pay-rejected { background: rgba(239, 68, 68, 0.14); color: #F87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+        .pay-rejected .pay-badge-dot { background: #EF4444; }
+
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(130, 130, 130, 0.25); border-radius: 99px; }
@@ -207,6 +229,20 @@
         </div>
     </div>
 
+    <!-- NEW: Payment Verification Modal -->
+    <div id="payment-verify-modal" onclick="if(event.target===this) closePaymentVerifyModal()" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+        <div class="card-outer p-6 max-w-lg w-full shadow-2xl space-y-4 my-8">
+            <div class="flex items-center justify-between pb-2 border-b" style="border-color: var(--border-normal);">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="receipt" class="w-5 h-5 text-accent"></i>
+                    <h3 class="font-black text-lg">Verify Payment</h3>
+                </div>
+                <button onclick="closePaymentVerifyModal()" class="text-sec hover:opacity-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="payment-verify-body" class="space-y-4"></div>
+        </div>
+    </div>
+
     <!-- Top Admin Header -->
     <header class="sticky top-0 z-40 backdrop-blur-md border-b" style="background: var(--nav-backdrop); border-color: var(--border-normal);">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -268,7 +304,6 @@
         bucket: "campaign-images"
     };
 
-    // Password-only access key
     const ADMIN_MASTER_PASSWORD = "2026Hawme";
 
     const app = initializeApp(firebaseConfig);
@@ -280,6 +315,7 @@
         search: "",
         roleFilter: "all",
         offerFilter: "all",
+        paymentFilter: "all",
         notifTargetMode: "all_creators",
         users: [],
         campaigns: [],
@@ -344,7 +380,29 @@
         return `${SUPABASE_CONFIG.storageUrl}/object/public/${SUPABASE_CONFIG.bucket}/${uploadPath}`;
     };
 
-    // Password-Only Login Handler
+    // NEW: payment badge renderer
+    window.paymentBadgeHTML = function(c) {
+        if (!c) return '';
+        const status = c.payment_status || '';
+        const method = c.payment_method || '';
+        if (status === 'VERIFIED') {
+            return `<span class="pay-badge pay-verified"><span class="pay-badge-dot"></span>Payment Verified</span>`;
+        }
+        if (status === 'SUBMITTED') {
+            return `<span class="pay-badge pay-review"><span class="pay-badge-dot"></span>Payment Under Review</span>`;
+        }
+        if (status === 'REJECTED') {
+            return `<span class="pay-badge pay-rejected"><span class="pay-badge-dot"></span>Payment Rejected</span>`;
+        }
+        if (method === 'ON_APPROVAL') {
+            return `<span class="pay-badge pay-pending"><span class="pay-badge-dot"></span>Pay on Approval</span>`;
+        }
+        if (method === 'VERIFIED_NOW' && status === 'PENDING') {
+            return `<span class="pay-badge pay-pending"><span class="pay-badge-dot"></span>Awaiting Payment</span>`;
+        }
+        return '';
+    };
+
     window.handlePasswordLogin = async function(e) {
         e.preventDefault();
         const input = document.getElementById('admin-password-input');
@@ -376,7 +434,6 @@
         document.getElementById('admin-session-badge')?.classList.toggle('hidden', !unlocked);
     }
 
-    // Confirmation Dialog
     window.openConfirmModal = function(title, description, onConfirm) {
         document.getElementById('confirm-title').innerText = title;
         document.getElementById('confirm-desc').innerText = description;
@@ -399,7 +456,6 @@
         document.getElementById('confirm-modal').classList.add('hidden');
     };
 
-    // Load Complete Firestore Database
     window.refreshAllAdminData = async function() {
         const s = window.adminState;
         try {
@@ -445,10 +501,181 @@
     };
 
     // ==========================================================================
-    // DEEP ADMIN CONTROLS: USERS, OFFERS, APPLICATIONS, DEALS, NOTIFICATIONS, PAYOUTS
+    // NEW: PAYMENT VERIFICATION ACTIONS
     // ==========================================================================
 
-    // 1. Delete User Account & All Related Records
+    // Open the payment verify modal
+    window.openPaymentVerifyModal = function(campaignId) {
+        const c = window.adminState.campaigns.find(x => x.id === campaignId);
+        if (!c) return;
+        const body = document.getElementById('payment-verify-body');
+        const methodLabel = c.payment_method === 'ON_APPROVAL' ? 'Payment on Approval' : 'Verified Payment (Pay Now)';
+        const statusBadge = window.paymentBadgeHTML(c);
+
+        body.innerHTML = `
+            <div class="p-4 card-inner space-y-2.5 tabular-nums">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-sec">Campaign</span>
+                    <span class="text-xs font-bold text-right">${window.escapeHTML(c.title)}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-sec">Company</span>
+                    <span class="text-xs font-bold">${window.escapeHTML(c.brand || '')}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-sec">Payment Method</span>
+                    <span class="text-xs font-bold text-accent">${methodLabel}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-sec">Current Status</span>
+                    <span>${statusBadge || '<span class="text-xs font-bold text-sec">—</span>'}</span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t" style="border-color: var(--border-normal);">
+                    <span class="text-xs text-sec">Amount Due</span>
+                    <span class="text-sm font-black text-emerald-400">ETB ${Number(c.payment_amount || c.total_amount || 0).toLocaleString()}</span>
+                </div>
+                ${c.payment_reference ? `
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-sec">Transaction Ref</span>
+                        <span class="text-xs font-bold text-accent">${window.escapeHTML(c.payment_reference)}</span>
+                    </div>
+                ` : ''}
+                ${c.payment_screenshot_url ? `
+                    <div class="pt-2">
+                        <p class="text-xs text-sec mb-1.5 font-bold">Payment Screenshot</p>
+                        <a href="${window.escapeHTML(c.payment_screenshot_url)}" target="_blank" rel="noreferrer">
+                            <img src="${window.escapeHTML(c.payment_screenshot_url)}" class="w-full max-h-64 object-contain rounded-xl border" style="border-color: var(--border-normal);">
+                        </a>
+                    </div>
+                ` : `
+                    <div class="p-3 card-inner text-xs text-sec text-center">No screenshot uploaded yet.</div>
+                `}
+            </div>
+
+            <div class="space-y-2 pt-1">
+                ${c.payment_status !== 'VERIFIED' ? `
+                    <button onclick="adminVerifyPayment('${c.id}', true)" class="w-full py-3 btn-cta text-xs flex items-center justify-center space-x-2">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span>Verify Payment & Mark Complete</span>
+                    </button>
+                ` : `
+                    <div class="p-3 rounded-xl text-xs font-bold text-center" style="background: rgba(16,185,129,0.12); color:#34D399;">
+                        ✅ Payment already verified
+                    </div>
+                `}
+                ${c.payment_status !== 'REJECTED' && c.payment_status !== 'VERIFIED' ? `
+                    <button onclick="adminVerifyPayment('${c.id}', false)" class="w-full py-3 btn-danger text-xs">
+                        Reject Payment
+                    </button>
+                ` : ''}
+                <button onclick="closePaymentVerifyModal()" class="w-full py-2.5 btn-ghost text-xs">Close</button>
+            </div>
+        `;
+        document.getElementById('payment-verify-modal').classList.remove('hidden');
+        lucide.createIcons();
+    };
+
+    window.closePaymentVerifyModal = function() {
+        document.getElementById('payment-verify-modal').classList.add('hidden');
+    };
+
+    // Approve or reject a payment
+    window.adminVerifyPayment = async function(campaignId, approve = true) {
+        const c = window.adminState.campaigns.find(x => x.id === campaignId);
+        if (!c) return;
+        try {
+            if (!approve) {
+                await updateDoc(doc(db, "campaigns", campaignId), {
+                    payment_status: 'REJECTED',
+                    status: c.payment_method === 'ON_APPROVAL' ? 'Active' : 'Payment Pending',
+                    payment_verified_at: new Date().toISOString(),
+                    payment_verified_by: 'ADMIN'
+                });
+                if (c.user_id) {
+                    await addDoc(collection(db, "notifications"), {
+                        user_id: c.user_id,
+                        title: 'Payment Rejected',
+                        message: `Your payment for "${c.title}" was rejected. Please re-submit a clear Telebirr screenshot.`,
+                        detail: `Campaign: ${c.title}\nAmount: ETB ${Number(c.payment_amount || 0).toLocaleString()}\nStatus: Rejected\nPlease check the screenshot and re-submit your payment details.`,
+                        campaign_id: campaignId,
+                        read: false,
+                        created_at: new Date().toISOString()
+                    });
+                }
+                window.showToast('Payment rejected and company notified.', 'info');
+            } else {
+                await updateDoc(doc(db, "campaigns", campaignId), {
+                    payment_status: 'VERIFIED',
+                    status: 'Completed',
+                    payment_verified_at: new Date().toISOString(),
+                    payment_verified_by: 'ADMIN',
+                    completed_at: new Date().toISOString()
+                });
+                if (c.user_id) {
+                    await addDoc(collection(db, "notifications"), {
+                        user_id: c.user_id,
+                        title: 'Payment Verified ✅',
+                        message: `Your payment of ETB ${Number(c.payment_amount || 0).toLocaleString()} for "${c.title}" has been verified. Offer is now marked Complete.`,
+                        detail: `Campaign: ${c.title}\nAmount: ETB ${Number(c.payment_amount || 0).toLocaleString()}\nStatus: Completed\nPayment: Verified ✅`,
+                        campaign_id: campaignId,
+                        read: false,
+                        created_at: new Date().toISOString()
+                    });
+                }
+                // If this campaign has accepted/completed applications, mark creators' completed_promotions up
+                for (const app of window.adminState.applications.filter(a => a.campaign_id === campaignId)) {
+                    if (app.creator_id) {
+                        const creatorRef = doc(db, "users", app.creator_id);
+                        const cSnap = await getDoc(creatorRef);
+                        if (cSnap.exists()) {
+                            await updateDoc(creatorRef, {
+                                completed_promotions: Number(cSnap.data().completed_promotions || 0) + 1
+                            });
+                        }
+                        await addDoc(collection(db, "notifications"), {
+                            user_id: app.creator_id,
+                            title: 'Promotion Payment Confirmed',
+                            message: `Payment for "${c.title}" has been verified. Your promotion is complete.`,
+                            detail: `Campaign: ${c.title}\nPayment: Verified ✅`,
+                            campaign_id: campaignId,
+                            read: false,
+                            created_at: new Date().toISOString()
+                        });
+                    }
+                }
+                window.showToast('Payment verified. Offer marked Complete.', 'success');
+            }
+            closePaymentVerifyModal();
+            await refreshAllAdminData();
+        } catch (err) {
+            window.showToast('Payment action failed: ' + err.message, 'error');
+        }
+    };
+
+    // Force-unblock a payment-on-approval offer (company hasn't paid yet)
+    window.adminForcePaymentRequest = async function(campaignId) {
+        const c = window.adminState.campaigns.find(x => x.id === campaignId);
+        if (!c || !c.user_id) return;
+        try {
+            await addDoc(collection(db, "notifications"), {
+                user_id: c.user_id,
+                title: 'Payment Required',
+                message: `Please complete the Telebirr payment of ETB ${Number(c.payment_amount || c.total_amount || 0).toLocaleString()} for "${c.title}".`,
+                detail: `Campaign: ${c.title}\nAmount Due: ETB ${Number(c.payment_amount || c.total_amount || 0).toLocaleString()}\nReceiver: 0996350347 (Hanif)\n\nOpen your Company Activity tab, click "Pay Now" on this offer, and upload your Telebirr screenshot.`,
+                campaign_id: campaignId,
+                read: false,
+                created_at: new Date().toISOString()
+            });
+            window.showToast('Payment reminder sent to company.', 'success');
+        } catch (err) {
+            window.showToast(err.message, 'error');
+        }
+    };
+
+    // ==========================================================================
+    // EXISTING ADMIN CONTROLS (unchanged)
+    // ==========================================================================
+
     window.promptDeleteUser = function(userId, displayName, role) {
         openConfirmModal(
             `Delete ${displayName}?`,
@@ -470,7 +697,6 @@
         );
     };
 
-    // Open Edit User Modal
     window.openEditUserModal = function(userId) {
         const u = window.adminState.users.find(x => x.id === userId);
         if (!u) return;
@@ -509,7 +735,6 @@
         } catch (err) { window.showToast(err.message, 'error'); }
     };
 
-    // 2. Offer Approval, Completion & Deletion
     window.setOfferStatus = async function(campaignId, newStatus, ownerId, title) {
         try {
             await updateDoc(doc(db, "campaigns", campaignId), {
@@ -547,7 +772,6 @@
         );
     };
 
-    // 3. Admin Application & Video Submission Approval/Completion
     window.adminSetApplicationStatus = async function(appId, newStatus) {
         const appObj = window.adminState.applications.find(a => a.id === appId);
         if (!appObj) return;
@@ -595,7 +819,6 @@
         );
     };
 
-    // 4. Direct Deal Admin Override & Deletion
     window.adminUpdateDealStatus = async function(dealId, newStatus) {
         const deal = window.adminState.deals.find(d => d.id === dealId);
         try {
@@ -627,7 +850,6 @@
         );
     };
 
-    // 5. Send Custom Notifications to Creators / Companies / Specific User
     window.handleSendAdminNotification = async function(e) {
         e.preventDefault();
         const mode = document.getElementById('notif-target-mode').value;
@@ -681,7 +903,6 @@
         }
     };
 
-    // 6. Verification Queue Decisions
     window.handleVerificationDecision = async function(reqId, userId, approve) {
         try {
             await updateDoc(doc(db, "verification_requests", reqId), {
@@ -710,7 +931,6 @@
         } catch (err) { window.showToast(err.message, 'error'); }
     };
 
-    // 7. Payouts & Escrow Completion
     window.completeCreatorWithdrawal = async function(withdrawalId, creatorId, amountEtb, bankName) {
         const refInput = document.getElementById(`tx-ref-${withdrawalId}`);
         const txRef = refInput?.value.trim() || `HAWME-TX-${Date.now()}`;
@@ -737,7 +957,6 @@
         } catch (err) { window.showToast(err.message, 'error'); }
     };
 
-    // 8. Community Announcements
     window.handlePublishCommunityPost = async function(e) {
         e.preventDefault();
         const caption = document.getElementById('admin-post-caption').value.trim();
@@ -787,7 +1006,6 @@
         const root = document.getElementById('admin-app');
         const s = window.adminState;
 
-        // Password-Only Gate
         if (!s.unlocked) {
             root.innerHTML = `
                 <div class="min-h-[82vh] flex items-center justify-center px-4 py-12">
@@ -816,12 +1034,17 @@
 
         const pendingVerifications = s.verifications.filter(v => v.status === 'Under Review' || v.status === 'Code Issued');
         const pendingWithdrawals = s.withdrawals.filter(w => w.status !== 'Completed');
+        const pendingPayments = s.campaigns.filter(c => c.payment_status === 'SUBMITTED');
         const creatorsCount = s.users.filter(u => u.role === 'creator').length;
         const companiesCount = s.users.filter(u => u.role === 'company').length;
         const totalEscrowVolume = s.transactions.reduce((sum, t) => sum + Number(t.amount_etb || 0), 0);
+        const verifiedRevenue = s.campaigns
+            .filter(c => c.payment_status === 'VERIFIED')
+            .reduce((sum, c) => sum + Number(c.payment_amount || 0), 0);
 
         const tabs = [
             { id: 'overview', label: 'Overview' },
+            { id: 'payments', label: `Payments (${pendingPayments.length})` },
             { id: 'users', label: `Users (${s.users.length})` },
             { id: 'offers', label: `Offers & Approvals (${s.campaigns.length})` },
             { id: 'notifications', label: 'Send Notifications' },
@@ -841,7 +1064,7 @@
                 </div>
 
                 ${s.tab === 'overview' ? `
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 tabular-nums">
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 tabular-nums">
                         <div class="card-outer p-5">
                             <p class="text-xs text-sec font-bold">Total Accounts</p>
                             <p class="text-2xl font-black mt-1">${s.users.length}</p>
@@ -853,16 +1076,44 @@
                             <p class="text-xs text-mut mt-1">${s.campaigns.filter(c => c.status !== 'Completed').length} Active Offers</p>
                         </div>
                         <div class="card-outer p-5">
-                            <p class="text-xs text-sec font-bold">Verification Queue</p>
-                            <p class="text-2xl font-black text-sky-400 mt-1">${pendingVerifications.length}</p>
-                            <p class="text-xs text-mut mt-1">Pending badge reviews</p>
+                            <p class="text-xs text-sec font-bold">Payments Under Review</p>
+                            <p class="text-2xl font-black text-yellow-400 mt-1">${pendingPayments.length}</p>
+                            <p class="text-xs text-mut mt-1">Awaiting admin verification</p>
                         </div>
                         <div class="card-outer p-5">
-                            <p class="text-xs text-sec font-bold">Escrow Volume</p>
-                            <p class="text-2xl font-black text-emerald-400 mt-1">ETB ${totalEscrowVolume.toLocaleString()}</p>
-                            <p class="text-xs text-mut mt-1">${pendingWithdrawals.length} Pending Payouts</p>
+                            <p class="text-xs text-sec font-bold">Verified Revenue</p>
+                            <p class="text-2xl font-black text-emerald-400 mt-1">ETB ${verifiedRevenue.toLocaleString()}</p>
+                            <p class="text-xs text-mut mt-1">From confirmed payments</p>
+                        </div>
+                        <div class="card-outer p-5">
+                            <p class="text-xs text-sec font-bold">Verification Queue</p>
+                            <p class="text-2xl font-black text-sky-400 mt-1">${pendingVerifications.length}</p>
+                            <p class="text-xs text-mut mt-1">${pendingWithdrawals.length} payouts pending</p>
                         </div>
                     </div>
+
+                    ${pendingPayments.length ? `
+                        <div class="card-outer overflow-hidden">
+                            <div class="px-6 py-4 border-b flex items-center justify-between" style="border-color: var(--border-normal);">
+                                <div class="flex items-center space-x-2">
+                                    <i data-lucide="receipt" class="w-4 h-4 text-yellow-400"></i>
+                                    <h3 class="font-extrabold text-sm">Payments Awaiting Verification</h3>
+                                </div>
+                                <button onclick="setAdminTab('payments')" class="text-xs font-bold text-accent hover:underline">View all →</button>
+                            </div>
+                            <div class="divide-y" style="border-color: var(--border-normal);">
+                                ${pendingPayments.slice(0, 4).map(c => `
+                                    <div class="p-4 flex items-center justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-extrabold truncate">${window.escapeHTML(c.title)}</p>
+                                            <p class="text-[11px] text-sec tabular-nums">${window.escapeHTML(c.brand)} · ETB ${Number(c.payment_amount || 0).toLocaleString()} · ${window.escapeHTML(c.payment_method === 'ON_APPROVAL' ? 'On Approval' : 'Verified Now')}</p>
+                                        </div>
+                                        <button onclick="openPaymentVerifyModal('${c.id}')" class="px-3 py-1.5 btn-cta text-xs shrink-0">Verify</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="card-outer p-6 space-y-4">
@@ -911,6 +1162,7 @@
                     </div>
                 ` : ''}
 
+                ${s.tab === 'payments' ? renderPaymentsTab() : ''}
                 ${s.tab === 'users' ? renderUsersTab() : ''}
                 ${s.tab === 'offers' ? renderOffersTab() : ''}
                 ${s.tab === 'notifications' ? renderNotificationsBroadcastTab() : ''}
@@ -920,6 +1172,92 @@
             </div>
         `;
         lucide.createIcons();
+    }
+
+    // NEW: Payments tab
+    function renderPaymentsTab() {
+        const s = window.adminState;
+        const filter = s.paymentFilter || 'all';
+        const filtered = s.campaigns.filter(c => {
+            if (filter === 'review') return c.payment_status === 'SUBMITTED';
+            if (filter === 'verified') return c.payment_status === 'VERIFIED';
+            if (filter === 'rejected') return c.payment_status === 'REJECTED';
+            if (filter === 'awaiting') return !c.payment_status || c.payment_status === 'PENDING' || c.payment_status === 'AWAITING_SCREENSHOT';
+            return true;
+        });
+
+        const reviewCount = s.campaigns.filter(c => c.payment_status === 'SUBMITTED').length;
+
+        return `
+            <div class="space-y-4">
+                <div class="card-outer p-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl card-inner flex items-center justify-center text-accent">
+                            <i data-lucide="wallet" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-base">Payment Center</h3>
+                            <p class="text-xs text-sec">Verify Telebirr payments and complete offers.</p>
+                        </div>
+                    </div>
+                    <select onchange="window.adminState.paymentFilter = this.value; renderAdminApp();" class="input-field px-3.5 py-2.5 text-xs font-bold w-auto">
+                        <option value="all" ${filter === 'all' ? 'selected' : ''}>All Payments</option>
+                        <option value="review" ${filter === 'review' ? 'selected' : ''}>Under Review (${reviewCount})</option>
+                        <option value="awaiting" ${filter === 'awaiting' ? 'selected' : ''}>Awaiting Payment</option>
+                        <option value="verified" ${filter === 'verified' ? 'selected' : ''}>Verified</option>
+                        <option value="rejected" ${filter === 'rejected' ? 'selected' : ''}>Rejected</option>
+                    </select>
+                </div>
+
+                ${reviewCount ? `
+                    <div class="p-4 rounded-xl flex items-center space-x-2.5" style="background: rgba(234,179,8,0.10); border: 1px solid rgba(234,179,8,0.35);">
+                        <i data-lucide="alert-circle" class="w-4 h-4 text-yellow-400 shrink-0"></i>
+                        <p class="text-xs font-bold text-yellow-400">${reviewCount} payment(s) waiting for your verification. Review each Telebirr screenshot and reference number carefully.</p>
+                    </div>
+                ` : ''}
+
+                <div class="card-outer overflow-hidden">
+                    <div class="divide-y" style="border-color: var(--border-normal);">
+                        ${filtered.length ? filtered.map(c => {
+                            const badge = window.paymentBadgeHTML(c);
+                            return `
+                                <div class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                    <div class="flex items-center space-x-3.5 min-w-0">
+                                        <img src="${window.escapeHTML(c.image_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300')}" class="w-14 h-14 rounded-xl object-cover shrink-0">
+                                        <div class="min-w-0">
+                                            <div class="flex items-center space-x-2 flex-wrap">
+                                                <span class="font-extrabold text-sm">${window.escapeHTML(c.title)}</span>
+                                                ${badge}
+                                            </div>
+                                            <p class="text-xs text-sec mt-0.5 tabular-nums">
+                                                ${window.escapeHTML(c.brand)} ·
+                                                <strong class="text-emerald-400">ETB ${Number(c.payment_amount || c.total_amount || 0).toLocaleString()}</strong> ·
+                                                ${c.payment_method === 'ON_APPROVAL' ? 'Pay on Approval' : 'Pay Now'}
+                                            </p>
+                                            ${c.payment_reference ? `<p class="text-[11px] text-mut tabular-nums mt-0.5">Ref: <span class="font-bold">${window.escapeHTML(c.payment_reference)}</span></p>` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2 flex-wrap shrink-0">
+                                        ${c.payment_screenshot_url ? `
+                                            <a href="${window.escapeHTML(c.payment_screenshot_url)}" target="_blank" class="px-3 py-1.5 btn-ghost text-xs flex items-center space-x-1.5">
+                                                <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                                                <span>Screenshot</span>
+                                            </a>
+                                        ` : ''}
+                                        <button onclick="openPaymentVerifyModal('${c.id}')" class="px-3 py-1.5 btn-cta text-xs">
+                                            ${c.payment_status === 'SUBMITTED' ? 'Verify Payment' : 'View Details'}
+                                        </button>
+                                        ${c.payment_method === 'ON_APPROVAL' && (!c.payment_status || c.payment_status === 'PENDING') ? `
+                                            <button onclick="adminForcePaymentRequest('${c.id}')" class="px-3 py-1.5 btn-ghost text-xs">Request Payment</button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('') : `<div class="p-8 text-center text-xs text-sec">No payments in this filter.</div>`}
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     function renderUsersTab() {
@@ -1004,13 +1342,15 @@
                                             <span class="font-extrabold text-sm">${window.escapeHTML(c.title)}</span>
                                             <span class="px-2 py-0.5 card-inner text-[11px] font-bold">${window.escapeHTML(c.type)}</span>
                                             <span class="px-2 py-0.5 card-inner text-[11px] font-bold ${c.status === 'Completed' ? 'text-emerald-400' : 'text-accent'}">${window.escapeHTML(c.status || 'Active')}</span>
+                                            ${window.paymentBadgeHTML(c)}
                                         </div>
                                         <p class="text-xs text-sec mt-0.5 tabular-nums">${window.escapeHTML(c.brand)} · ${window.escapeHTML(c.reward)} · Min ${Number(c.min_followers || 0).toLocaleString()} followers</p>
                                     </div>
                                 </div>
                                 <div class="flex items-center space-x-2 flex-wrap shrink-0">
-                                    ${c.status !== 'Active' ? `<button onclick="setOfferStatus('${c.id}', 'Active', '${window.escapeHTML(c.user_id || '')}', '${window.escapeHTML(c.title)}')" class="px-3 py-2 btn-ghost text-xs">Approve / Activate</button>` : ''}
-                                    ${c.status !== 'Completed' ? `<button onclick="setOfferStatus('${c.id}', 'Completed', '${window.escapeHTML(c.user_id || '')}', '${window.escapeHTML(c.title)}')" class="px-3 py-2 btn-cta text-xs">Approve & Complete</button>` : ''}
+                                    ${c.payment_status === 'SUBMITTED' ? `<button onclick="openPaymentVerifyModal('${c.id}')" class="px-3 py-2 btn-cta text-xs">Verify Payment</button>` : ''}
+                                    ${c.status !== 'Active' && c.status !== 'Completed' ? `<button onclick="setOfferStatus('${c.id}', 'Active', '${window.escapeHTML(c.user_id || '')}', '${window.escapeHTML(c.title)}')" class="px-3 py-2 btn-ghost text-xs">Approve / Activate</button>` : ''}
+                                    ${c.status !== 'Completed' && c.payment_status === 'VERIFIED' ? `<button onclick="setOfferStatus('${c.id}', 'Completed', '${window.escapeHTML(c.user_id || '')}', '${window.escapeHTML(c.title)}')" class="px-3 py-2 btn-cta text-xs">Approve & Complete</button>` : ''}
                                     <button onclick="promptDeleteOffer('${c.id}', '${window.escapeHTML(c.title)}')" class="px-3 py-2 btn-danger text-xs">Delete Offer</button>
                                 </div>
                             </div>
@@ -1018,34 +1358,39 @@
                     </div>
                 </div>
 
-                <!-- Applications & Video Submissions Review -->
                 <div class="card-outer overflow-hidden">
                     <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
                         <h3 class="font-extrabold text-sm">Creator Applications & Video Submissions (${s.applications.length})</h3>
                     </div>
                     <div class="divide-y" style="border-color: var(--border-normal);">
-                        ${s.applications.map(a => `
-                            <div class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                                <div class="space-y-1">
-                                    <div class="flex items-center space-x-2 flex-wrap">
-                                        <span class="font-extrabold text-sm">${window.escapeHTML(a.creator_name)}</span>
-                                        <span class="text-xs text-accent font-bold">${window.escapeHTML(a.creator_tiktok)}</span>
-                                        <span class="px-2.5 py-0.5 card-inner text-xs font-bold">${window.escapeHTML(a.status)}</span>
+                        ${s.applications.map(a => {
+                            const parentCampaign = s.campaigns.find(c => c.id === a.campaign_id);
+                            const parentPayStatus = parentCampaign?.payment_status || '';
+                            const isOnApprovalPending = parentCampaign?.payment_method === 'ON_APPROVAL' && (!parentPayStatus || parentPayStatus === 'PENDING');
+                            return `
+                                <div class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                    <div class="space-y-1">
+                                        <div class="flex items-center space-x-2 flex-wrap">
+                                            <span class="font-extrabold text-sm">${window.escapeHTML(a.creator_name)}</span>
+                                            <span class="text-xs text-accent font-bold">${window.escapeHTML(a.creator_tiktok)}</span>
+                                            <span class="px-2.5 py-0.5 card-inner text-xs font-bold">${window.escapeHTML(a.status)}</span>
+                                            ${isOnApprovalPending ? `<span class="pay-badge pay-pending"><span class="pay-badge-dot"></span>Company Hasn't Paid</span>` : ''}
+                                        </div>
+                                        <p class="text-xs text-sec">Campaign: <strong>${window.escapeHTML(a.campaign_title)}</strong></p>
+                                        ${a.video_url ? `<p class="text-xs">Submitted Video: <a href="${window.escapeHTML(a.video_url)}" target="_blank" class="text-accent font-bold underline">${window.escapeHTML(a.video_url)}</a></p>` : ''}
                                     </div>
-                                    <p class="text-xs text-sec">Campaign: <strong>${window.escapeHTML(a.campaign_title)}</strong></p>
-                                    ${a.video_url ? `<p class="text-xs">Submitted Video: <a href="${window.escapeHTML(a.video_url)}" target="_blank" class="text-accent font-bold underline">${window.escapeHTML(a.video_url)}</a></p>` : ''}
+                                    <div class="flex items-center space-x-2 flex-wrap shrink-0">
+                                        ${a.status !== 'Accepted' && a.status !== 'Completed' ? `<button onclick="adminSetApplicationStatus('${a.id}', 'Accepted')" class="px-3 py-1.5 btn-ghost text-xs">Approve App</button>` : ''}
+                                        ${a.status !== 'Completed' && !isOnApprovalPending ? `<button onclick="adminSetApplicationStatus('${a.id}', 'Completed')" class="px-3 py-1.5 btn-cta text-xs">Complete Work</button>` : ''}
+                                        ${isOnApprovalPending && parentCampaign ? `<button onclick="adminForcePaymentRequest('${parentCampaign.id}')" class="px-3 py-1.5 btn-ghost text-xs">Request Payment</button>` : ''}
+                                        <button onclick="promptDeleteApplication('${a.id}')" class="px-3 py-1.5 btn-danger text-xs">Delete</button>
+                                    </div>
                                 </div>
-                                <div class="flex items-center space-x-2 flex-wrap shrink-0">
-                                    ${a.status !== 'Accepted' && a.status !== 'Completed' ? `<button onclick="adminSetApplicationStatus('${a.id}', 'Accepted')" class="px-3 py-1.5 btn-ghost text-xs">Approve App</button>` : ''}
-                                    ${a.status !== 'Completed' ? `<button onclick="adminSetApplicationStatus('${a.id}', 'Completed')" class="px-3 py-1.5 btn-cta text-xs">Complete Work</button>` : ''}
-                                    <button onclick="promptDeleteApplication('${a.id}')" class="px-3 py-1.5 btn-danger text-xs">Delete</button>
-                                </div>
-                            </div>
-                        `).join('') || `<div class="p-8 text-center text-xs text-sec">No applications recorded.</div>`}
+                            `;
+                        }).join('') || `<div class="p-8 text-center text-xs text-sec">No applications recorded.</div>`}
                     </div>
                 </div>
 
-                <!-- Direct Deals Moderation -->
                 <div class="card-outer overflow-hidden">
                     <div class="px-6 py-4 border-b" style="border-color: var(--border-normal);">
                         <h3 class="font-extrabold text-sm">Direct Creator-Company Deals (${s.deals.length})</h3>
